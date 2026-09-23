@@ -1,0 +1,10 @@
+{
+  // Облако клуба для приложения «Темп»: Cloudflare Worker + база D1.
+  // База создаётся автоматически при первом `wrangler deploy`.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tempo-club",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "d1_databases": [{ "binding": "DB" }]
+}
