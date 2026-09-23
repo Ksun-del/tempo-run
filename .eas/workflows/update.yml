@@ -1,0 +1,10 @@
+name: Обновление приложения
+on:
+  push:
+    branches: ['main']
+jobs:
+  update:
+    type: update
+    params:
+      channel: preview
+      platform: android
