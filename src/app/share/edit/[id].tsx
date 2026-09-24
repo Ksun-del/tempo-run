@@ -1,10 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CardCanvas from '../../../components/card/CardCanvas';
-import { ACCENT, makeSet, makeSticker, RATIO, SETS, STICKER_MENU, type Sticker, type Tint } from '../../../components/card/model';
+import { ACCENT, makeSet, makeSticker, RATIO, seasonalStickers, SETS, STICKER_MENU, type Sticker, type Tint } from '../../../components/card/model';
+import { computeAchievements } from '../../../lib/achievements';
+import { useRuns } from '../../../lib/hooks';
 import Sheet, { SheetOption } from '../../../components/Sheet';
 import { Button } from '../../../components/ui';
 import { useDraft } from '../../../lib/cardStore';
@@ -23,6 +25,9 @@ export default function StickerEditor() {
   const [sheet, setSheet] = useState<SheetId>(null);
   const [text, setText] = useState('');
   const [editingText, setEditingText] = useState<string | null>(null);
+  const { runs } = useRuns();
+  const earned = useMemo(() => computeAchievements(runs).filter((a) => a.earnedAt != null), [runs]);
+  const seasonal = useMemo(() => seasonalStickers(), []);
 
   const ratio = RATIO[comp.format];
   const cardW = Math.min(sw - 40, (sh * 0.6) / ratio);
@@ -163,6 +168,30 @@ export default function StickerEditor() {
             </Pressable>
           ))}
         </View>
+        {seasonal.length > 0 && (
+          <>
+            <Text style={styles.chipsTitle}>Праздничные</Text>
+            <View style={styles.chips}>
+              {seasonal.map((m) => (
+                <Pressable key={m.kind} onPress={() => add(makeSticker(m.kind))} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.6 }]}>
+                  <Text style={styles.chipText}>+ {m.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+        {earned.length > 0 && (
+          <>
+            <Text style={styles.chipsTitle}>Мои достижения</Text>
+            <View style={styles.chips}>
+              {earned.map((a) => (
+                <Pressable key={a.id} onPress={() => add(makeSticker('badge', a.id))} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.6 }]}>
+                  <Text style={styles.chipText}>+ {a.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
         <Text style={styles.sheetNote}>Стикер появится на карточке — передвинь его, куда хочешь.</Text>
         <Pressable
           onPress={() => {
@@ -250,6 +279,7 @@ const styles = StyleSheet.create({
   thumbLabel: { fontFamily: fonts.bodySemi, color: colors.text, fontSize: 13, marginTop: 6 },
   sheetNote: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, marginTop: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipsTitle: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 13, marginTop: 14, marginBottom: 8 },
   chip: { paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,185,0,0.14)', justifyContent: 'center' },
   chipText: { fontFamily: fonts.bodySemi, color: colors.text, fontSize: 14 },
   clearAll: { fontFamily: fonts.bodySemi, color: colors.accent, fontSize: 14, marginTop: 14, marginBottom: 4 },

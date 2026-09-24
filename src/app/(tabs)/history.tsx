@@ -1,10 +1,16 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Badge from '../../components/Badge';
+import Sheet, { SheetOption } from '../../components/Sheet';
 import TrackSvg from '../../components/TrackSvg';
-import { formatDate, formatDuration, formatKm, formatPace, formatTime, paceSecPerKm } from '../../lib/geo';
+import { computeAchievements, type AchievementState } from '../../lib/achievements';
+import { formatDate, formatShortDate, formatDuration, formatKm, formatPace, formatTime, paceSecPerKm } from '../../lib/geo';
+import { healthSupported, importHealthRun, listHealthRuns, openHealthSettings, type HealthRun } from '../../lib/health';
 import { useRuns } from '../../lib/hooks';
+import { importGpxFile } from '../../lib/importRun';
 import type { RunSummary } from '../../lib/storage';
 import { colors, fonts } from '../../lib/theme';
 
@@ -76,6 +82,56 @@ function runsWord(n: number) {
 export default function HistoryScreen() {
   const { runs, loading } = useRuns();
   const [period, setPeriod] = useState<Period>('week');
+  const achievements = useMemo(() => computeAchievements(runs), [runs]);
+  const earnedCount = achievements.filter((a) => a.earnedAt != null).length;
+  const [openAch, setOpenAch] = useState<AchievementState | null>(null);
+  const [addSheet, setAddSheet] = useState(false);
+  const [hcSheet, setHcSheet] = useState(false);
+  const [hcRuns, setHcRuns] = useState<HealthRun[] | null>(null);
+  const [hcBusy, setHcBusy] = useState<string | null>(null);
+
+  const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+  const fromFile = async () => {
+    setAddSheet(false);
+    try {
+      const id = await importGpxFile();
+      if (id) router.push(`/activity/${id}?fresh=1`);
+    } catch (e) {
+      Alert.alert('Не получилось добавить', errText(e));
+    }
+  };
+
+  const fromHealth = async () => {
+    setAddSheet(false);
+    setHcRuns(null);
+    setHcSheet(true);
+    try {
+      setHcRuns(await listHealthRuns(60));
+    } catch (e) {
+      setHcSheet(false);
+      Alert.alert('Health Connect', errText(e), [
+        { text: 'Открыть Health Connect', onPress: openHealthSettings },
+        { text: 'Закрыть', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const addHealthRun = async (h: HealthRun) => {
+    setHcBusy(h.id);
+    try {
+      const id = await importHealthRun(h);
+      setHcRuns((list) => list?.map((x) => (x.id === h.id ? { ...x, imported: true } : x)) ?? null);
+      if (id) {
+        setHcSheet(false);
+        router.push(`/activity/${id}?fresh=1`);
+      }
+    } catch (e) {
+      Alert.alert('Не получилось добавить', errText(e));
+    } finally {
+      setHcBusy(null);
+    }
+  };
 
   const stats = useMemo(() => {
     const from = periodStart(period);
@@ -120,7 +176,13 @@ export default function HistoryScreen() {
 
   const header = (
     <View>
-      <Text style={styles.h1}>Статистика</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.h1}>Статистика</Text>
+        <Pressable onPress={() => setAddSheet(true)} style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]} hitSlop={8}>
+          <Ionicons name="add" size={18} color={colors.accentText} />
+          <Text style={styles.addText}>Добавить</Text>
+        </Pressable>
+      </View>
       <View style={styles.tabs}>
         {PERIODS.map((p) => (
           <Pressable key={p.key} onPress={() => setPeriod(p.key)} style={[styles.tab, period === p.key && styles.tabActive]}>
@@ -166,6 +228,26 @@ export default function HistoryScreen() {
             <Record label="Самая длинная" value={`${formatKm(records.longest, 1)} км`} />
             <Record label="Всего" value={`${formatKm(records.total, 0)} км`} />
             <Record label="Пробежек" value={String(records.count)} />
+          </View>
+          <View style={styles.achHead}>
+            <Text style={styles.blockTitle}>Достижения</Text>
+            <Text style={styles.achCount}>
+              {earnedCount} из {achievements.length}
+            </Text>
+          </View>
+          <View style={styles.achGrid}>
+            {achievements.map((a) => {
+              const got = a.earnedAt != null;
+              return (
+                <Pressable key={a.id} style={styles.achItem} onPress={() => setOpenAch(a)}>
+                  <Badge a={a} size={64} locked={!got} />
+                  <Text style={[styles.achName, got && { color: colors.text }]} numberOfLines={2}>
+                    {!got && a.secret ? 'Секрет' : a.name}
+                  </Text>
+                  {a.repeat && a.count > 1 && <Text style={styles.achTimes}>×{a.count}</Text>}
+                </Pressable>
+              );
+            })}
           </View>
           <Text style={styles.blockTitle}>Все пробежки</Text>
         </>
@@ -214,6 +296,77 @@ export default function HistoryScreen() {
           </Pressable>
         )}
       />
+      <Sheet visible={addSheet} title="Добавить пробежку" onClose={() => setAddSheet(false)}>
+        {healthSupported && (
+          <SheetOption
+            icon={<Ionicons name="watch-outline" size={22} color={colors.accent} />}
+            label="С часов (Health Connect)"
+            onPress={fromHealth}
+          />
+        )}
+        <SheetOption icon={<Ionicons name="document-outline" size={22} color={colors.accent} />} label="Из файла GPX" onPress={fromFile} />
+        <Text style={styles.addNote}>
+          {healthSupported
+            ? 'Health Connect — это хранилище тренировок в телефоне. Часы Xiaomi (через Mi Fitness), Amazfit, Samsung и другие отправляют туда пробежки. GPX-файл можно выгрузить из Strava или приложения часов.'
+            : 'GPX-файл можно выгрузить из Strava, приложения «Здоровье» или приложения часов.'}
+        </Text>
+      </Sheet>
+
+      <Sheet visible={hcSheet} title="Пробежки с часов" onClose={() => setHcSheet(false)}>
+        {!hcRuns ? (
+          <ActivityIndicator color={colors.accent} style={{ marginVertical: 30 }} />
+        ) : hcRuns.length === 0 ? (
+          <Text style={styles.addNote}>
+            За последние 2 месяца в Health Connect нет пробежек. Проверь, что в приложении часов (например, Mi Fitness) включена отправка тренировок в Health Connect.
+          </Text>
+        ) : (
+          hcRuns.map((h) => (
+            <View key={h.id} style={styles.hcRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.hcTitle}>
+                  {formatDate(h.startedAt)} · {formatTime(h.startedAt)}
+                </Text>
+                <Text style={styles.hcSub}>
+                  {h.distanceM > 0 ? `${formatKm(h.distanceM)} км · ` : ''}
+                  {formatDuration(h.endedAt - h.startedAt)} · {h.source}
+                  {h.hasRoute ? ' · есть маршрут' : ''}
+                </Text>
+              </View>
+              {h.imported ? (
+                <Text style={styles.hcDone}>Добавлено</Text>
+              ) : (
+                <Pressable onPress={() => addHealthRun(h)} disabled={!!hcBusy} style={({ pressed }) => [styles.hcAdd, pressed && { opacity: 0.7 }]}>
+                  {hcBusy === h.id ? <ActivityIndicator color={colors.accentText} /> : <Text style={styles.hcAddText}>Добавить</Text>}
+                </Pressable>
+              )}
+            </View>
+          ))
+        )}
+      </Sheet>
+
+      <Sheet visible={!!openAch} title={openAch && (openAch.earnedAt != null || !openAch.secret) ? openAch.name : 'Секретное достижение'} onClose={() => setOpenAch(null)}>
+        {openAch && (
+          <View style={{ alignItems: 'center', paddingBottom: 16 }}>
+            <Badge a={openAch} size={140} locked={openAch.earnedAt == null} />
+            <Text style={styles.achDesc}>{openAch.earnedAt == null && openAch.secret ? 'Узнаешь, когда получишь' : openAch.desc}</Text>
+            {openAch.earnedAt != null ? (
+              <Text style={styles.achWhen}>
+                Получено {formatShortDate(openAch.earnedAt)}
+                {openAch.repeat && openAch.count > 1 ? ` · ${openAch.count} раз` : ''}
+              </Text>
+            ) : openAch.progressText ? (
+              <View style={{ alignSelf: 'stretch', marginTop: 14 }}>
+                <Text style={styles.achWhen}>{openAch.progressText}</Text>
+                <View style={styles.progTrack}>
+                  <View style={[styles.progBar, { width: `${Math.round(openAch.progress * 100)}%` }]} />
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.achWhen}>Ещё впереди</Text>
+            )}
+          </View>
+        )}
+      </Sheet>
     </SafeAreaView>
   );
 }
@@ -228,6 +381,26 @@ function Record({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: colors.accent, marginTop: 8 },
+  addText: { fontFamily: fonts.bodySemi, color: colors.accentText, fontSize: 13 },
+  addNote: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 10, marginBottom: 8 },
+  hcRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  hcTitle: { fontFamily: fonts.bodySemi, color: colors.text, fontSize: 15 },
+  hcSub: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, marginTop: 2 },
+  hcAdd: { height: 34, minWidth: 96, paddingHorizontal: 14, borderRadius: 17, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  hcAddText: { fontFamily: fonts.bodySemi, color: colors.accentText, fontSize: 13 },
+  hcDone: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 13 },
+  achHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  achCount: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 14 },
+  achGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, rowGap: 14 },
+  achItem: { width: '33.33%', alignItems: 'center', paddingHorizontal: 4 },
+  achName: { fontFamily: fonts.bodyMedium, color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 4, lineHeight: 14 },
+  achTimes: { fontFamily: fonts.bodyBold, color: colors.accent, fontSize: 11 },
+  achDesc: { fontFamily: fonts.bodyMedium, color: colors.text, fontSize: 16, textAlign: 'center', marginTop: 14 },
+  achWhen: { fontFamily: fonts.body, color: colors.muted, fontSize: 14, textAlign: 'center', marginTop: 6 },
+  progTrack: { height: 8, borderRadius: 4, backgroundColor: colors.surface2, marginTop: 8, overflow: 'hidden' },
+  progBar: { height: '100%', backgroundColor: colors.accent, borderRadius: 4 },
   blockTitle: { fontFamily: fonts.display, color: colors.text, fontSize: 22, textTransform: 'uppercase', marginTop: 26 },
   records: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   record: { width: '31.8%', backgroundColor: colors.surface, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 10 },

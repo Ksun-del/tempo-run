@@ -3,11 +3,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import NewAchievement from '../../components/NewAchievement';
 import RunMap from '../../components/RunMap';
+import { makeSticker } from '../../components/card/model';
+import { newAchievementsFor, type AchievementState } from '../../lib/achievements';
+import { setDraft } from '../../lib/cardStore';
+import { say } from '../../lib/voice';
 import { Button, SectionTitle } from '../../components/ui';
 import { formatDate, formatDuration, formatKm, formatPace, formatTime, paceSecPerKm, speedKmh, weekdayName } from '../../lib/geo';
 import { ClubError, resyncIfShared, shareRun, unshareRun, clubConfigured } from '../../lib/club';
-import { deleteRun, getRun, getSettings, updateRunTitle, type Run, type Settings } from '../../lib/storage';
+import { deleteRun, getRun, getSettings, listRuns, updateRunTitle, type Run, type Settings } from '../../lib/storage';
 import { splitRows } from '../../lib/splits';
 import { colors, fonts } from '../../lib/theme';
 
@@ -18,6 +23,19 @@ export default function ActivityScreen() {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState('');
   const [clubBusy, setClubBusy] = useState(false);
+  const [newAch, setNewAch] = useState<AchievementState[]>([]);
+
+  // Сразу после финиша — проверяем новые достижения
+  useEffect(() => {
+    if (!fresh) return;
+    (async () => {
+      const found = newAchievementsFor(await listRuns(), id);
+      if (!found.length) return;
+      setNewAch(found);
+      const s = await getSettings();
+      if (s.voiceEnabled) say(`Новое достижение! ${found[0].name}`, false);
+    })().catch(() => {});
+  }, [id, fresh]);
 
   useEffect(() => {
     getRun(id).then((r) => {
@@ -172,6 +190,15 @@ export default function ActivityScreen() {
         </View>
       </ScrollView>
 
+      <NewAchievement
+        items={newAch}
+        onClose={() => setNewAch([])}
+        onCard={(a) => {
+          setNewAch([]);
+          setDraft(run.id, (c) => ({ ...c, set: null, stickers: [...c.stickers, { ...makeSticker('badge', a.id), anchor: 'tr', x: 0.06, y: 0.2, scale: 0.8 }] }));
+          router.push(`/share/${run.id}`);
+        }}
+      />
       <SafeAreaView edges={['bottom']} style={styles.footer}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {clubConfigured() && (

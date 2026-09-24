@@ -10,6 +10,7 @@ import { useActiveRun, useNow } from '../lib/hooks';
 import { getSettings, type Settings } from '../lib/storage';
 import { colors, fonts } from '../lib/theme';
 import { finishRun, movingTime, pauseRun, resumeRun } from '../lib/tracker';
+import { openMusic } from '../lib/music';
 
 /** Текущий темп по последним ~30 секундам текущего отрезка */
 function currentPace(points: TrackPoint[], seg: number): number | null {
@@ -122,6 +123,10 @@ export default function RunScreen() {
         </View>
 
         <View style={styles.controls}>
+          <Pressable style={styles.side} onPress={openMusic} hitSlop={8}>
+            <Ionicons name="musical-notes" size={22} color={colors.text} />
+            <Text style={styles.sideText}>Музыка</Text>
+          </Pressable>
           {paused ? (
             <>
               <Pressable style={[styles.ctrl, styles.ctrlStop]} onPress={onFinish}>
@@ -136,6 +141,7 @@ export default function RunScreen() {
               <Ionicons name="pause" size={38} color={colors.accentText} />
             </Pressable>
           )}
+          <View style={styles.side} />
         </View>
       </SafeAreaView>
     </View>
@@ -144,6 +150,8 @@ export default function RunScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  side: { width: 64, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  sideText: { fontFamily: fonts.bodyMedium, color: colors.muted, fontSize: 11 },
   mapWrap: { flex: 1 },
   mapTop: {
     position: 'absolute',
@@ -205,7 +213,7 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', marginTop: 14 },
   cell: { flex: 1 },
-  controls: { flexDirection: 'row', justifyContent: 'center', gap: 40, paddingVertical: 22 },
+  controls: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 20, paddingVertical: 22 },
   ctrl: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
   ctrlPause: { backgroundColor: colors.accent },
   ctrlGo: { backgroundColor: colors.accent },

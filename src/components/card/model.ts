@@ -21,7 +21,12 @@ export type StickerKind =
   | 'bigkm'
   | 'classic'
   | 'splits'
-  | 'text';
+  | 'text'
+  /** значок достижения, text = id достижения */
+  | 'badge'
+  | 'pumpkin'
+  | 'tree'
+  | 'victory';
 
 export type Anchor = 'tl' | 'tr' | 'bl' | 'br';
 export type Tint = 'accent' | 'white';
@@ -70,6 +75,17 @@ export const STICKER_MENU: { kind: StickerKind; label: string }[] = [
   { kind: 'bigkm', label: 'Крупные км' },
   { kind: 'splits', label: 'Сплиты' },
 ];
+
+/** Праздничные стикеры: доступны неделю вокруг праздника */
+export function seasonalStickers(now = new Date()): { kind: StickerKind; label: string }[] {
+  const m = now.getMonth();
+  const d = now.getDate();
+  const out: { kind: StickerKind; label: string }[] = [];
+  if ((m === 9 && d >= 25) || (m === 10 && d <= 1)) out.push({ kind: 'pumpkin', label: 'Тыква' });
+  if ((m === 11 && d >= 25) || (m === 0 && d <= 10)) out.push({ kind: 'tree', label: 'Ёлка' });
+  if (m === 4 && d <= 12) out.push({ kind: 'victory', label: 'Звезда Победы' });
+  return out;
+}
 
 /** Какой цвет стикер получает по умолчанию */
 const DEFAULT_TINT: Partial<Record<StickerKind, Tint>> = { distance: 'accent', route: 'accent', bigkm: 'accent', classic: 'accent', pills: 'accent', splits: 'accent' };

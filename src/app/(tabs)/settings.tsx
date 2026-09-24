@@ -200,7 +200,7 @@ export default function SettingsScreen() {
           }}
         />
 
-        <Text style={styles.footer}>RUN 1.1 · карты © OpenFreeMap, © OpenStreetMap</Text>
+        <Text style={styles.footer}>RUN 1.2 · карты © OpenFreeMap, © OpenStreetMap</Text>
       </ScrollView>
     </SafeAreaView>
   );

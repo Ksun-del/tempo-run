@@ -1,6 +1,8 @@
 import { Image, Text, View } from 'react-native';
 import { formatDuration, formatKm, formatPace, formatShortDate } from '../../lib/geo';
 import { fonts } from '../../lib/theme';
+import { ACH_BY_ID } from '../../lib/achievements';
+import Badge, { PumpkinArt, TreeArt, VictoryStarArt } from '../Badge';
 import TrackSvg from '../TrackSvg';
 import { tintColor, type CardData, type Sticker } from './model';
 
@@ -21,6 +23,24 @@ export function StickerContent({ s, data, k }: { s: Sticker; data: CardData; k: 
       const l = LOGO[s.kind];
       return <Image source={l.source} style={{ width: l.h * l.aspect * k, height: l.h * k }} resizeMode="contain" />;
     }
+    case 'badge': {
+      const a = ACH_BY_ID[s.text ?? ''];
+      if (!a) return null;
+      return (
+        <View style={{ alignItems: 'center', maxWidth: 200 * k }}>
+          <Badge a={a} size={110 * k} />
+          <Text style={{ fontFamily: fonts.display, color: c, fontSize: 20 * k, textTransform: 'uppercase', textAlign: 'center', marginTop: 6 * k, ...shadow }}>
+            {a.name}
+          </Text>
+        </View>
+      );
+    }
+    case 'pumpkin':
+      return <PumpkinArt width={150 * k} />;
+    case 'tree':
+      return <TreeArt width={140 * k} />;
+    case 'victory':
+      return <VictoryStarArt width={140 * k} />;
     case 'date':
       return <Text style={{ fontFamily: fonts.bodySemi, color: c, fontSize: 13 * k, ...shadow }}>{formatShortDate(data.startedAt)}</Text>;
     case 'title':

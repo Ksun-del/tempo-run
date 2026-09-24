@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts } from '../lib/theme';
 
 /** Нижняя выезжающая панель */
 export default function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const { height } = useWindowDimensions();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <SafeAreaView edges={['bottom']} style={styles.sheet}>
         <View style={styles.grip} />
         <Text style={styles.title}>{title}</Text>
-        {children}
+        <ScrollView style={{ maxHeight: height * 0.65 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {children}
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );

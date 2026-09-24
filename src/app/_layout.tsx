@@ -3,9 +3,10 @@ import { Oswald_500Medium, Oswald_700Bold } from '@expo-google-fonts/oswald';
 import { useFonts } from 'expo-font';
 import { DarkTheme, SplashScreen, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Intro from '../components/Intro';
 import { colors } from '../lib/theme';
 import { resumeTrackingIfNeeded } from '../lib/tracker';
 
@@ -26,6 +27,9 @@ export default function RootLayout() {
     Inter_700Bold,
     Inter_900Black,
   });
+
+  const [intro, setIntro] = useState(true);
+  const endIntro = useCallback(() => setIntro(false), []);
 
   useEffect(() => {
     resumeTrackingIfNeeded().catch(() => {});
@@ -49,6 +53,7 @@ export default function RootLayout() {
           <Stack.Screen name="share/edit/[id]" options={{ gestureEnabled: false }} />
           <Stack.Screen name="club/[id]" />
         </Stack>
+        {intro && <Intro onDone={endIntro} />}
       </ThemeProvider>
     </SafeAreaProvider>
   );

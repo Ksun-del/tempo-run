@@ -26,9 +26,10 @@ function spokenKm(km: number): string {
   return `${a} и ${Number(b)} сотых километра`;
 }
 
-export function say(text: string) {
+/** interrupt=false — встать в очередь после текущей фразы */
+export function say(text: string, interrupt = true) {
   try {
-    Speech.stop();
+    if (interrupt) Speech.stop();
     Speech.speak(text, { language: 'ru-RU', rate: 1.0, pitch: 1.0 });
   } catch {
     // голос недоступен — просто молчим
