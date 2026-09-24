@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CardCanvas from '../../../components/card/CardCanvas';
 import { ACCENT, makeSet, makeSticker, RATIO, seasonalStickers, SETS, STICKER_MENU, type Sticker, type Tint } from '../../../components/card/model';
 import { computeAchievements } from '../../../lib/achievements';
-import { useRuns } from '../../../lib/hooks';
+import { useRuns, useSettings } from '../../../lib/hooks';
 import Sheet, { SheetOption } from '../../../components/Sheet';
 import { Button } from '../../../components/ui';
 import { useDraft } from '../../../lib/cardStore';
@@ -26,7 +26,8 @@ export default function StickerEditor() {
   const [text, setText] = useState('');
   const [editingText, setEditingText] = useState<string | null>(null);
   const { runs } = useRuns();
-  const earned = useMemo(() => computeAchievements(runs).filter((a) => a.earnedAt != null), [runs]);
+  const settings = useSettings();
+  const earned = useMemo(() => computeAchievements(runs, settings?.gender ?? 'f').filter((a) => a.earnedAt != null), [runs, settings?.gender]);
   const seasonal = useMemo(() => seasonalStickers(), []);
 
   const ratio = RATIO[comp.format];

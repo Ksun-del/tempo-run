@@ -5,6 +5,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RunMap from '../../components/RunMap';
+import Welcome from '../../components/Welcome';
+import { g } from '../../lib/gender';
 import { formatKm } from '../../lib/geo';
 import { useActiveRun, useRuns } from '../../lib/hooks';
 import { getSettings, type Settings } from '../../lib/storage';
@@ -92,7 +94,7 @@ export default function HomeScreen() {
       )}
       <View style={styles.topShade} pointerEvents="none" />
       <SafeAreaView edges={['top']} style={styles.header} pointerEvents="box-none">
-        <Text style={styles.hello}>{settings?.name ? `Привет, ${settings.name}` : 'Готов к пробежке?'}</Text>
+        <Text style={styles.hello}>{settings?.name ? `Привет, ${settings.name}` : g(settings?.gender ?? '', 'Готова к пробежке?', 'Готов к пробежке?')}</Text>
         <View style={styles.weekRow}>
           <Text style={styles.weekKm}>{formatKm(week.km, 1)}</Text>
           <Text style={styles.weekLabel}>км на этой неделе · {week.count} {week.count === 1 ? 'пробежка' : week.count >= 2 && week.count <= 4 ? 'пробежки' : 'пробежек'}</Text>
@@ -118,6 +120,7 @@ export default function HomeScreen() {
           )}
         </Pressable>
       </View>
+      {settings && !settings.gender && <Welcome settings={settings} onDone={setSettings} />}
     </View>
   );
 }

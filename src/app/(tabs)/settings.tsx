@@ -86,6 +86,15 @@ export default function SettingsScreen() {
             placeholderTextColor={colors.muted}
             style={styles.input}
           />
+          <Text style={[styles.label, { marginTop: 14 }]}>Обращаться ко мне</Text>
+          <Segmented
+            value={s.gender}
+            onChange={(v) => update({ gender: v })}
+            options={[
+              { value: 'f', label: 'Она' },
+              { value: 'm', label: 'Он' },
+            ]}
+          />
         </View>
 
         <SectionTitle>Клуб Pobeda Run</SectionTitle>
@@ -110,7 +119,7 @@ export default function SettingsScreen() {
                 disabled={checking}
               />
               <Text style={[styles.label, { marginTop: 10, marginBottom: 0 }]}>
-                В клубе увидят твоё имя и пробежки, которые ты сама отправишь кнопкой «В клуб».
+                В клубе увидят твоё имя и пробежки, которые ты {s.gender === 'm' ? 'сам' : 'сама'} отправишь кнопкой «В клуб».
               </Text>
             </>
           ) : (

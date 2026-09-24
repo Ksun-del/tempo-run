@@ -8,9 +8,13 @@ import { getRun, getSettings, type Run } from './storage';
 export function useCardData(id: string) {
   const [run, setRun] = useState<Run | null>(null);
   const [name, setName] = useState('');
+  const [gender, setGender] = useState<'f' | 'm' | ''>('');
   useEffect(() => {
     getRun(id).then(setRun);
-    getSettings().then((s) => setName(s.name));
+    getSettings().then((s) => {
+      setName(s.name);
+      setGender(s.gender);
+    });
   }, [id]);
   const data: CardData | null = useMemo(
     () =>
@@ -24,8 +28,9 @@ export function useCardData(id: string) {
         points: run.points,
         splits: splitRows(run),
         name,
+        gender,
       },
-    [run, name],
+    [run, name, gender],
   );
   return { run, data };
 }

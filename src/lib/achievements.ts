@@ -2,6 +2,7 @@
  * Достижения. Считаются заново по всем пробежкам — ничего дополнительно хранить не нужно.
  * Время — по часам телефона (в Ростове это ростовское время).
  */
+import { fill, type Gender } from './gender';
 import type { RunSummary } from './storage';
 
 export type BadgeShape = 'circle' | 'hex' | 'shield' | 'round' | 'star';
@@ -58,8 +59,8 @@ const TOTAL: [string, number, string][] = [
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first_run', group: G.first, name: 'Первая пробежка', desc: 'Первая пробежка, записанная в RUN', shape: 'circle', icon: 'shoe' },
-  { id: 'club', group: G.first, name: 'В клубе', desc: 'Отправила первую пробежку в ленту клуба', shape: 'circle', icon: 'club' },
-  { id: 'first_pr', group: G.first, name: 'Первый рекорд', desc: 'Побила свой лучший 1 км или 5 км', shape: 'circle', icon: 'trophy' },
+  { id: 'club', group: G.first, name: 'В клубе', desc: 'Отправил{а} первую пробежку в ленту клуба', shape: 'circle', icon: 'club' },
+  { id: 'first_pr', group: G.first, name: 'Первый рекорд', desc: 'Побил{а} свой лучший 1 км или 5 км', shape: 'circle', icon: 'trophy' },
   ...DIST.map(([id, m, big, name, secret]) => ({
     id,
     group: G.dist,
@@ -70,12 +71,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     small: 'КМ',
     secret,
   })),
-  ...TOTAL.map(([id, km, desc]) => ({ id, group: G.total, name: `Ты пробежала ${km} км`, desc, shape: 'hex' as const, big: String(km), small: 'КМ' })),
+  ...TOTAL.map(([id, km, desc]) => ({ id, group: G.total, name: `Ты пробежал{а} ${km} км`, desc, shape: 'hex' as const, big: String(km), small: 'КМ' })),
   { id: 'n10', group: G.reg, name: '10 пробежек', desc: 'Всего 10 пробежек', shape: 'shield', big: '10', small: 'РАЗ' },
   { id: 'n50', group: G.reg, name: '50 пробежек', desc: 'Всего 50 пробежек', shape: 'shield', big: '50', small: 'РАЗ' },
   { id: 'n100', group: G.reg, name: '100 пробежек', desc: 'Всего 100 пробежек', shape: 'shield', big: '100', small: 'РАЗ' },
   { id: 'week3', group: G.reg, name: 'Неделя в ритме', desc: '3 пробежки за одну неделю', shape: 'shield', big: '3×', small: 'НЕДЕЛЯ' },
-  { id: 'month4', group: G.reg, name: 'Месяц без пропусков', desc: 'Бегала каждую неделю 4 недели подряд', shape: 'shield', icon: 'fire' },
+  { id: 'month4', group: G.reg, name: 'Месяц без пропусков', desc: 'Бегал{а} каждую неделю 4 недели подряд', shape: 'shield', icon: 'fire' },
   { id: 'weekend', group: G.days, name: 'Воскресный забег', desc: 'Пробежка в субботу или воскресенье', shape: 'round', big: 'ВС', small: 'SUNDAY RUN', repeat: true },
   { id: 'dawn', group: G.days, name: 'Рассветный бегун', desc: 'Старт до 7:00', shape: 'round', icon: 'sun', repeat: true },
   { id: 'night', group: G.days, name: 'Ночной дозор', desc: 'Старт после 22:00', shape: 'round', icon: 'moon', repeat: true },
@@ -99,7 +100,7 @@ const weekStart = (ts: number) => {
 const WEEK = 7 * 86400000;
 
 /** Пересчитать все достижения по списку пробежек */
-export function computeAchievements(all: RunSummary[]): AchievementState[] {
+export function computeAchievements(all: RunSummary[], gender: Gender = 'f'): AchievementState[] {
   const runs = [...all].sort((a, b) => a.startedAt - b.startedAt);
   const earned = new Map<string, number>();
   const count = new Map<string, number>();
@@ -184,17 +185,25 @@ export function computeAchievements(all: RunSummary[]): AchievementState[] {
         progressText = `${nRuns} из ${goal} пробежек`;
       }
     }
-    return { ...a, earnedAt: earned.get(a.id) ?? null, count: count.get(a.id) ?? 0, progress, progressText };
+    return {
+      ...a,
+      name: fill(a.name, gender),
+      desc: fill(a.desc, gender),
+      earnedAt: earned.get(a.id) ?? null,
+      count: count.get(a.id) ?? 0,
+      progress,
+      progressText,
+    };
   });
 }
 
 /** Какие достижения появились благодаря пробежке runId (сравниваем «до» и «после») */
-export function newAchievementsFor(all: RunSummary[], runId: string): AchievementState[] {
+export function newAchievementsFor(all: RunSummary[], runId: string, gender: Gender = 'f'): AchievementState[] {
   const run = all.find((r) => r.id === runId);
   if (!run) return [];
   const without = all.filter((r) => r.id !== runId);
   const before = new Map(computeAchievements(without).map((a) => [a.id, a.count]));
-  return computeAchievements(all).filter((a) => {
+  return computeAchievements(all, gender).filter((a) => {
     const was = before.get(a.id) ?? 0;
     // повторяемые показываем только в первый раз, чтобы не надоедать
     return a.count > 0 && was === 0;

@@ -30,6 +30,8 @@ export type Settings = {
   name: string;
   /** код клуба для облака */
   clubCode: string;
+  /** обращение: f — она, m — он, '' — ещё не выбрано */
+  gender: 'f' | 'm' | '';
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   mapStyle: 'dark',
   name: '',
   clubCode: '',
+  gender: '',
 };
 
 const INDEX_KEY = 'tempo:runs:index';
@@ -102,8 +105,17 @@ export async function getSettings(): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...(raw ? JSON.parse(raw) : {}) };
 }
 
+const settingsListeners = new Set<(s: Settings) => void>();
+export function onSettingsChanged(fn: (s: Settings) => void) {
+  settingsListeners.add(fn);
+  return () => {
+    settingsListeners.delete(fn);
+  };
+}
+
 export async function saveSettings(s: Partial<Settings>): Promise<Settings> {
   const next = { ...(await getSettings()), ...s };
   await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+  settingsListeners.forEach((l) => l(next));
   return next;
 }

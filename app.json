@@ -90,6 +90,14 @@
           "imageWidth": 180,
           "resizeMode": "contain"
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

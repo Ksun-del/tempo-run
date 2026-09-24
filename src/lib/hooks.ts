@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getActive, subscribe, type ActiveRun } from './tracker';
-import { listRuns, onRunsChanged, type RunSummary } from './storage';
+import { getSettings, listRuns, onRunsChanged, onSettingsChanged, type RunSummary, type Settings } from './storage';
 
 /** Текущая активная тренировка; перерисовывается на каждую новую точку. */
 export function useActiveRun(): ActiveRun | null {
@@ -48,4 +48,19 @@ export function useRuns(): { runs: RunSummary[]; loading: boolean } {
     };
   }, []);
   return { runs, loading };
+}
+
+/** Настройки; обновляются сразу после сохранения на экране настроек */
+export function useSettings(): Settings | null {
+  const [s, setS] = useState<Settings | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getSettings().then((x) => alive && setS(x));
+    const off = onSettingsChanged(setS);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+  return s;
 }

@@ -162,4 +162,5 @@ export type CardData = {
   points: import('../../lib/geo').TrackPoint[];
   splits: { km: string; pace: number }[];
   name: string;
+  gender: import('../../lib/gender').Gender;
 };

@@ -1,4 +1,5 @@
 import * as Speech from 'expo-speech';
+import { duckEnd, duckStart } from './duck';
 
 function plural(n: number, one: string, few: string, many: string) {
   const m10 = n % 10;
@@ -26,11 +27,21 @@ function spokenKm(km: number): string {
   return `${a} и ${Number(b)} сотых километра`;
 }
 
-/** interrupt=false — встать в очередь после текущей фразы */
+/** interrupt=false — встать в очередь после текущей фразы. Музыка на время фразы приглушается. */
 export function say(text: string, interrupt = true) {
   try {
     if (interrupt) Speech.stop();
-    Speech.speak(text, { language: 'ru-RU', rate: 1.0, pitch: 1.0 });
+    duckStart();
+    let done = false;
+    const end = () => {
+      if (done) return;
+      done = true;
+      // небольшая пауза, чтобы музыка не «прыгала» между фразами
+      setTimeout(() => duckEnd(), 400);
+    };
+    Speech.speak(text, { language: 'ru-RU', rate: 1.0, pitch: 1.0, onDone: end, onStopped: end, onError: end });
+    // страховка: если колбэк не пришёл, всё равно вернём громкость
+    setTimeout(end, 20000);
   } catch {
     // голос недоступен — просто молчим
   }

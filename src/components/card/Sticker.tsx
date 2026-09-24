@@ -2,6 +2,7 @@ import { Image, Text, View } from 'react-native';
 import { formatDuration, formatKm, formatPace, formatShortDate } from '../../lib/geo';
 import { fonts } from '../../lib/theme';
 import { ACH_BY_ID } from '../../lib/achievements';
+import { fill } from '../../lib/gender';
 import Badge, { PumpkinArt, TreeArt, VictoryStarArt } from '../Badge';
 import TrackSvg from '../TrackSvg';
 import { tintColor, type CardData, type Sticker } from './model';
@@ -30,7 +31,7 @@ export function StickerContent({ s, data, k }: { s: Sticker; data: CardData; k: 
         <View style={{ alignItems: 'center', maxWidth: 200 * k }}>
           <Badge a={a} size={110 * k} />
           <Text style={{ fontFamily: fonts.display, color: c, fontSize: 20 * k, textTransform: 'uppercase', textAlign: 'center', marginTop: 6 * k, ...shadow }}>
-            {a.name}
+            {fill(a.name, data.gender)}
           </Text>
         </View>
       );

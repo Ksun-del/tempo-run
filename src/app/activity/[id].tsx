@@ -29,10 +29,10 @@ export default function ActivityScreen() {
   useEffect(() => {
     if (!fresh) return;
     (async () => {
-      const found = newAchievementsFor(await listRuns(), id);
+      const s = await getSettings();
+      const found = newAchievementsFor(await listRuns(), id, s.gender);
       if (!found.length) return;
       setNewAch(found);
-      const s = await getSettings();
       if (s.voiceEnabled) say(`Новое достижение! ${found[0].name}`, false);
     })().catch(() => {});
   }, [id, fresh]);

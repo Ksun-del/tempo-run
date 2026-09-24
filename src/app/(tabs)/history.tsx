@@ -9,7 +9,7 @@ import TrackSvg from '../../components/TrackSvg';
 import { computeAchievements, type AchievementState } from '../../lib/achievements';
 import { formatDate, formatShortDate, formatDuration, formatKm, formatPace, formatTime, paceSecPerKm } from '../../lib/geo';
 import { healthSupported, importHealthRun, listHealthRuns, openHealthSettings, type HealthRun } from '../../lib/health';
-import { useRuns } from '../../lib/hooks';
+import { useRuns, useSettings } from '../../lib/hooks';
 import { importGpxFile } from '../../lib/importRun';
 import type { RunSummary } from '../../lib/storage';
 import { colors, fonts } from '../../lib/theme';
@@ -82,9 +82,17 @@ function runsWord(n: number) {
 export default function HistoryScreen() {
   const { runs, loading } = useRuns();
   const [period, setPeriod] = useState<Period>('week');
-  const achievements = useMemo(() => computeAchievements(runs), [runs]);
+  const settings = useSettings();
+  const achievements = useMemo(() => computeAchievements(runs, settings?.gender ?? 'f'), [runs, settings?.gender]);
   const earnedCount = achievements.filter((a) => a.earnedAt != null).length;
   const [openAch, setOpenAch] = useState<AchievementState | null>(null);
+  const [achOpen, setAchOpen] = useState(false);
+  // в свёрнутом виде: последние полученные, а если их мало — ближайшие цели
+  const achPreview = useMemo(() => {
+    const got = achievements.filter((a) => a.earnedAt != null).sort((x, y) => (y.earnedAt ?? 0) - (x.earnedAt ?? 0));
+    const next = achievements.filter((a) => a.earnedAt == null && !a.secret).sort((x, y) => y.progress - x.progress);
+    return [...got, ...next].slice(0, 5);
+  }, [achievements]);
   const [addSheet, setAddSheet] = useState(false);
   const [hcSheet, setHcSheet] = useState(false);
   const [hcRuns, setHcRuns] = useState<HealthRun[] | null>(null);
@@ -178,10 +186,17 @@ export default function HistoryScreen() {
     <View>
       <View style={styles.titleRow}>
         <Text style={styles.h1}>Статистика</Text>
-        <Pressable onPress={() => setAddSheet(true)} style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]} hitSlop={8}>
-          <Ionicons name="add" size={18} color={colors.accentText} />
-          <Text style={styles.addText}>Добавить</Text>
-        </Pressable>
+        <View style={styles.titleBtns}>
+          {healthSupported && (
+            <Pressable onPress={fromHealth} style={({ pressed }) => [styles.watchBtn, pressed && { opacity: 0.7 }]} hitSlop={8} accessibilityLabel="Пробежки с часов">
+              <Ionicons name="watch-outline" size={20} color={colors.accent} />
+            </Pressable>
+          )}
+          <Pressable onPress={() => setAddSheet(true)} style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]} hitSlop={8}>
+            <Ionicons name="add" size={18} color={colors.accentText} />
+            <Text style={styles.addText}>Добавить</Text>
+          </Pressable>
+        </View>
       </View>
       <View style={styles.tabs}>
         {PERIODS.map((p) => (
@@ -229,29 +244,43 @@ export default function HistoryScreen() {
             <Record label="Всего" value={`${formatKm(records.total, 0)} км`} />
             <Record label="Пробежек" value={String(records.count)} />
           </View>
-          <View style={styles.achHead}>
-            <Text style={styles.blockTitle}>Достижения</Text>
-            <Text style={styles.achCount}>
-              {earnedCount} из {achievements.length}
-            </Text>
-          </View>
-          <View style={styles.achGrid}>
-            {achievements.map((a) => {
-              const got = a.earnedAt != null;
-              return (
-                <Pressable key={a.id} style={styles.achItem} onPress={() => setOpenAch(a)}>
-                  <Badge a={a} size={64} locked={!got} />
-                  <Text style={[styles.achName, got && { color: colors.text }]} numberOfLines={2}>
-                    {!got && a.secret ? 'Секрет' : a.name}
-                  </Text>
-                  {a.repeat && a.count > 1 && <Text style={styles.achTimes}>×{a.count}</Text>}
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={styles.blockTitle}>Все пробежки</Text>
         </>
       )}
+      <>
+          <Pressable style={styles.achHead} onPress={() => setAchOpen((v) => !v)} hitSlop={6}>
+            <Text style={styles.blockTitle}>Достижения</Text>
+            <View style={styles.achToggle}>
+              <Text style={styles.achCount}>
+                {earnedCount} из {achievements.length}
+              </Text>
+              <Ionicons name={achOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+            </View>
+          </Pressable>
+          {achOpen ? (
+            <View style={styles.achGrid}>
+              {achievements.map((a) => {
+                const got = a.earnedAt != null;
+                return (
+                  <Pressable key={a.id} style={styles.achItem} onPress={() => setOpenAch(a)}>
+                    <Badge a={a} size={64} locked={!got} />
+                    <Text style={[styles.achName, got && { color: colors.text }]} numberOfLines={2}>
+                      {!got && a.secret ? 'Секрет' : a.name}
+                    </Text>
+                    {a.repeat && a.count > 1 && <Text style={styles.achTimes}>×{a.count}</Text>}
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Pressable style={styles.achStrip} onPress={() => setAchOpen(true)}>
+              {achPreview.map((a) => (
+                <Badge key={a.id} a={a} size={48} locked={a.earnedAt == null} />
+              ))}
+              <Text style={styles.achMore}>Все</Text>
+            </Pressable>
+          )}
+          {runs.length > 0 && <Text style={styles.blockTitle}>Все пробежки</Text>}
+      </>
       {!loading && runs.length === 0 && (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Пока пусто</Text>
@@ -382,6 +411,8 @@ function Record({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleBtns: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  watchBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: colors.accent, marginTop: 8 },
   addText: { fontFamily: fonts.bodySemi, color: colors.accentText, fontSize: 13 },
   addNote: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 10, marginBottom: 8 },
@@ -391,7 +422,10 @@ const styles = StyleSheet.create({
   hcAdd: { height: 34, minWidth: 96, paddingHorizontal: 14, borderRadius: 17, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   hcAddText: { fontFamily: fonts.bodySemi, color: colors.accentText, fontSize: 13 },
   hcDone: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 13 },
-  achHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  achHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  achToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 26 },
+  achStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: colors.surface, borderRadius: 16, padding: 10 },
+  achMore: { flex: 1, textAlign: 'right', fontFamily: fonts.bodySemi, color: colors.accent, fontSize: 13, paddingRight: 6 },
   achCount: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 14 },
   achGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, rowGap: 14 },
   achItem: { width: '33.33%', alignItems: 'center', paddingHorizontal: 4 },
