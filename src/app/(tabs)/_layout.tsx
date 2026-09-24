@@ -20,7 +20,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="history"
-        options={{ title: 'История', tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart" color={color} size={size} /> }}
+        options={{ title: 'Статистика', tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart" color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="club"

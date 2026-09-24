@@ -185,9 +185,9 @@ export default function ActivityScreen() {
             />
           )}
           <Button
-            title="Карточка"
+            title="Поделиться"
             style={{ flex: 1.3 }}
-            icon={<Ionicons name="camera" size={20} color={colors.accentText} />}
+            icon={<Ionicons name="share-social" size={20} color={colors.accentText} />}
             onPress={() => router.push(`/share/${run.id}`)}
           />
         </View>

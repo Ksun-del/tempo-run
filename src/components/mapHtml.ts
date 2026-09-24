@@ -9,7 +9,7 @@ const STYLES: Record<MapStyle, string> = {
   light: 'https://tiles.openfreemap.org/styles/positron',
 };
 
-const TRACK = '#FFB902';
+const TRACK = '#FFB900';
 
 /**
  * HTML-страница с картой для WebView.
@@ -27,7 +27,7 @@ html,body,#map{margin:0;padding:0;width:100%;height:100%;background:${bg};overfl
 .maplibregl-ctrl-attrib{font-size:9px;background:rgba(0,0,0,.35)!important;color:#bbb}
 .maplibregl-ctrl-attrib a{color:#ddd}
 .maplibregl-ctrl-attrib-button{display:none}
-.me{width:18px;height:18px;border-radius:50%;background:${TRACK};border:3px solid #0B0B0C;box-shadow:0 0 0 6px rgba(255,185,2,.28);transform:translate(-50%,-50%)}
+.me{width:18px;height:18px;border-radius:50%;background:${TRACK};border:3px solid #0B0B0C;box-shadow:0 0 0 6px rgba(255,185,0,.28);transform:translate(-50%,-50%)}
 .dot{width:12px;height:12px;border-radius:50%;border:2px solid #0B0B0C;transform:translate(-50%,-50%)}
 .maplibregl-marker .me,.maplibregl-marker .dot{transform:none}
 </style></head><body><div id="map"></div>

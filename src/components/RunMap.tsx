@@ -29,6 +29,10 @@ const RunMap = forwardRef<RunMapHandle, Props>(function RunMap(
   const sent = useRef(0);
   const html = useMemo(() => buildMapHtml(mapStyle, interactive), [mapStyle, interactive]);
   const onReady = useCallback(() => setReady(true), []);
+  const onReload = useCallback(() => {
+    setReady(false);
+    sent.current = 0;
+  }, []);
 
   useImperativeHandle(ref, () => ({ recenter: () => frame.current?.run('tempo.recenter()') }));
 
@@ -54,7 +58,7 @@ const RunMap = forwardRef<RunMapHandle, Props>(function RunMap(
 
   return (
     <View style={[styles.wrap, style]} pointerEvents={interactive ? 'auto' : 'none'}>
-      <MapFrame ref={frame} html={html} onReady={onReady} />
+      <MapFrame ref={frame} html={html} onReady={onReady} onReload={onReload} />
     </View>
   );
 });

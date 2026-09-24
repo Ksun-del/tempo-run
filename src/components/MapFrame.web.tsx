@@ -1,7 +1,7 @@
 import { createElement, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 
 export type MapFrameHandle = { run: (js: string) => void };
-type Props = { html: string; onReady: () => void };
+type Props = { html: string; onReady: () => void; onReload?: () => void };
 
 /** Веб-версия карты (для предпросмотра в браузере). */
 const MapFrame = forwardRef<MapFrameHandle, Props>(function MapFrame({ html, onReady }, ref) {

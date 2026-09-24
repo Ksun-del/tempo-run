@@ -46,6 +46,7 @@ export default function RootLayout() {
           <Stack.Screen name="run" options={{ gestureEnabled: false, animation: 'slide_from_bottom' }} />
           <Stack.Screen name="activity/[id]" />
           <Stack.Screen name="share/[id]" options={{ animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="share/edit/[id]" options={{ gestureEnabled: false }} />
           <Stack.Screen name="club/[id]" />
         </Stack>
       </ThemeProvider>

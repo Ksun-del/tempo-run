@@ -1,92 +1,43 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
-import { ACCENTS, LOGOS, renderTemplate, TEMPLATES, type CardData, type LogoId, type TemplateId } from '../../components/templates';
-import { Button } from '../../components/ui';
-import { paceSecPerKm } from '../../lib/geo';
-import { splitRows } from '../../lib/splits';
-import { getRun, getSettings, type Run } from '../../lib/storage';
+import CardCanvas from '../../components/card/CardCanvas';
+import { makeSet, RATIO, type Format } from '../../components/card/model';
+import Sheet, { SheetOption } from '../../components/Sheet';
+import { useDraft } from '../../lib/cardStore';
+import { pickPhoto } from '../../lib/photo';
 import { colors, fonts } from '../../lib/theme';
-
-type Format = 'story' | 'post';
-const RATIO: Record<Format, number> = { story: 16 / 9, post: 5 / 4 };
+import { useCardData } from '../../lib/useCardData';
 
 export default function ShareScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width: sw, height: sh } = useWindowDimensions();
-  const [run, setRun] = useState<Run | null>(null);
-  const [name, setName] = useState('');
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [template, setTemplate] = useState<TemplateId>('minimal');
-  const [accent, setAccent] = useState(ACCENTS[0]);
-  const [format, setFormat] = useState<Format>('story');
-  const [logo, setLogo] = useState<LogoId>('emblem');
+  const { data } = useCardData(id);
+  const [comp, setComp] = useDraft(id);
   const [busy, setBusy] = useState<null | 'save' | 'share'>(null);
+  const [photoSheet, setPhotoSheet] = useState(false);
   const card = useRef<View>(null);
 
-  useEffect(() => {
-    getRun(id).then(setRun);
-    getSettings().then((s) => setName(s.name));
-  }, [id]);
-
-  const data: CardData | null = useMemo(
-    () =>
-      run && {
-        title: run.title,
-        startedAt: run.startedAt,
-        distanceM: run.distanceM,
-        durationMs: run.durationMs,
-        pace: paceSecPerKm(run.distanceM, run.durationMs),
-        elevationGainM: run.elevationGainM,
-        points: run.points,
-        splits: splitRows(run),
-        name,
-      },
-    [run, name],
-  );
-
-  // Превью помещается в экран: примерно половина высоты под карточку
-  const ratio = RATIO[format];
-  const maxH = sh * 0.5;
-  const cardW = Math.min(sw - 48, maxH / ratio);
+  const ratio = RATIO[comp.format];
+  const cardW = Math.min(sw - 64, (sh * 0.52) / ratio);
   const cardH = cardW * ratio;
 
-  const pick = async (source: 'camera' | 'library') => {
-    const opts: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: format === 'story' ? [9, 16] : [4, 5],
-      quality: 0.9,
-    };
-    try {
-      if (source === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          Alert.alert('Нет доступа к камере', 'Разреши доступ к камере в настройках телефона.');
-          return;
-        }
-      }
-      const res = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-      if (!res.canceled && res.assets[0]) setPhoto(res.assets[0].uri);
-    } catch (e) {
-      Alert.alert('Не получилось открыть', String(e));
-    }
+  const setFormat = (f: Format) =>
+    setComp((c) => (c.format === f ? c : { ...c, format: f, ...(c.set ? makeSet(c.set, f) : {}) }));
+
+  const choosePhoto = async (source: 'camera' | 'library') => {
+    setPhotoSheet(false);
+    const uri = await pickPhoto(source, comp.format);
+    if (uri) setComp((c) => ({ ...c, photo: uri }));
   };
 
   const capture = () =>
-    captureRef(card, {
-      format: 'jpg',
-      quality: 0.95,
-      width: 1080,
-      height: Math.round(1080 * ratio),
-      result: 'tmpfile',
-    });
+    captureRef(card, { format: 'jpg', quality: 0.95, width: 1080, height: Math.round(1080 * ratio), result: 'tmpfile' });
 
   const onSave = async () => {
     setBusy('save');
@@ -96,9 +47,8 @@ export default function ShareScreen() {
         Alert.alert('Нет доступа к галерее', 'Разреши сохранение фото в настройках телефона.');
         return;
       }
-      const uri = await capture();
-      await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert('Готово', 'Карточка сохранена в галерею.');
+      await MediaLibrary.saveToLibraryAsync(await capture());
+      Alert.alert('Готово', 'Картинка сохранена в галерею.');
     } catch (e) {
       Alert.alert('Не получилось сохранить', String(e));
     } finally {
@@ -128,84 +78,87 @@ export default function ShareScreen() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.hBtn}>
-          <Ionicons name="close" size={26} color={colors.text} />
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.hTitle}>Карточка</Text>
+        <Text style={styles.hTitle}>Поделиться</Text>
         <View style={styles.formatToggle}>
           {(['story', 'post'] as Format[]).map((f) => (
-            <Pressable key={f} onPress={() => setFormat(f)} style={[styles.fBtn, format === f && styles.fBtnActive]}>
-              <Text style={[styles.fText, format === f && styles.fTextActive]}>{f === 'story' ? '9:16' : '4:5'}</Text>
+            <Pressable key={f} onPress={() => setFormat(f)} style={[styles.fBtn, comp.format === f && styles.fBtnActive]}>
+              <Text style={[styles.fText, comp.format === f && styles.fTextActive]}>{f === 'story' ? '9:16' : '4:5'}</Text>
             </Pressable>
           ))}
         </View>
       </View>
 
-      <View style={styles.previewArea}>
-        <View style={[styles.cardShadow, { width: cardW, height: cardH }]}>
-          <View ref={card} collapsable={false} style={{ width: cardW, height: cardH, borderRadius: 0, overflow: 'hidden' }}>
-            {renderTemplate(template, { data, photo, accent, width: cardW, height: cardH, logo })}
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        <Pressable onPress={() => router.push(`/share/edit/${id}`)} style={styles.previewArea}>
+          <View style={[styles.cardShadow, { width: cardW, height: cardH }]}>
+            <View ref={card} collapsable={false}>
+              <CardCanvas comp={comp} data={data} width={cardW} height={cardH} />
+            </View>
           </View>
-        </View>
-      </View>
+        </Pressable>
 
-      <View style={styles.controls}>
-        <View style={styles.photoRow}>
-          <PhotoBtn icon="camera" label="Камера" onPress={() => pick('camera')} />
-          <PhotoBtn icon="images" label="Галерея" onPress={() => pick('library')} />
-          <PhotoBtn icon="close-circle" label="Без фото" onPress={() => setPhoto(null)} active={!photo} />
+        <View style={styles.tiles}>
+          <Tile icon={<Ionicons name="image-outline" size={22} color={colors.accent} />} label={comp.photo ? 'Сменить фото' : 'Добавить фото'} onPress={() => setPhotoSheet(true)} />
+          <Tile icon={<Ionicons name="happy-outline" size={22} color={colors.accent} />} label="Стикеры" onPress={() => router.push(`/share/edit/${id}`)} />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          {TEMPLATES.map((t) => (
-            <Pressable key={t.id} onPress={() => setTemplate(t.id)} style={[styles.chip, template === t.id && styles.chipActive]}>
-              <Text style={[styles.chipText, template === t.id && styles.chipTextActive]}>{t.name}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <View style={styles.logoRow}>
-          {(['emblem', 'wordmark', 'none'] as LogoId[]).map((l) => (
-            <Pressable key={l} onPress={() => setLogo(l)} style={[styles.logoChip, logo === l && styles.chipActive]}>
-              <Text style={[styles.logoChipText, logo === l && styles.chipTextActive]}>{l === 'none' ? 'Без логотипа' : LOGOS[l].label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.swatches}>
-          {ACCENTS.map((c) => (
-            <Pressable key={c} onPress={() => setAccent(c)} style={[styles.swatchRing, accent === c && { borderColor: c }]}>
-              <View style={[styles.swatch, { backgroundColor: c }]} />
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.actions}>
-          <Button
-            title="Сохранить"
-            kind="secondary"
-            style={{ flex: 1 }}
+        <View style={styles.list}>
+          <Row
+            icon={busy === 'save' ? <ActivityIndicator color={colors.accent} /> : <Ionicons name="download-outline" size={22} color={colors.accent} />}
+            title="Сохранить картинку"
+            sub="В галерею телефона"
             onPress={onSave}
             disabled={!!busy}
-            icon={busy === 'save' ? <ActivityIndicator color={colors.text} /> : <Ionicons name="download-outline" size={20} color={colors.text} />}
           />
-          <Button
+          <Row
+            icon={busy === 'share' ? <ActivityIndicator color={colors.accent} /> : <Ionicons name="share-social-outline" size={22} color={colors.accent} />}
             title="Поделиться"
-            style={{ flex: 1 }}
+            sub="В сторис, соцсети или мессенджеры"
             onPress={onShare}
             disabled={!!busy}
-            icon={busy === 'share' ? <ActivityIndicator color={colors.accentText} /> : <Ionicons name="share-social" size={20} color={colors.accentText} />}
           />
         </View>
-      </View>
+      </ScrollView>
+
+      <Sheet visible={photoSheet} title="Фото" onClose={() => setPhotoSheet(false)}>
+        <SheetOption icon={<Ionicons name="camera-outline" size={22} color={colors.text} />} label="Сделать фото" onPress={() => choosePhoto('camera')} />
+        <SheetOption icon={<Ionicons name="images-outline" size={22} color={colors.text} />} label="Выбрать из галереи" onPress={() => choosePhoto('library')} />
+        {comp.photo && (
+          <SheetOption
+            icon={<Ionicons name="trash-outline" size={22} color={colors.danger} />}
+            label="Убрать фото"
+            danger
+            onPress={() => {
+              setPhotoSheet(false);
+              setComp((c) => ({ ...c, photo: null }));
+            }}
+          />
+        )}
+      </Sheet>
     </SafeAreaView>
   );
 }
 
-function PhotoBtn({ icon, label, onPress, active }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; active?: boolean }) {
+function Tile({ icon, label, onPress }: { icon: ReactNode; label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.photoBtn, active && styles.photoBtnActive, pressed && { opacity: 0.7 }]}>
-      <Ionicons name={icon} size={20} color={active ? colors.accent : colors.text} />
-      <Text style={styles.photoLabel}>{label}</Text>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
+      <View style={styles.tileIcon}>{icon}</View>
+      <Text style={styles.tileText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function Row({ icon, title, sub, onPress, disabled }: { icon: ReactNode; title: string; sub: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
+      <View style={styles.rowIcon}>{icon}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowSub}>{sub}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.muted} />
     </Pressable>
   );
 }
@@ -213,41 +166,33 @@ function PhotoBtn({ icon, label, onPress, active }: { icon: keyof typeof Ionicon
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 52 },
-  hBtn: { width: 40 },
-  hTitle: { flex: 1, fontFamily: fonts.bodyBold, color: colors.text, fontSize: 17, textAlign: 'center' },
-  formatToggle: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 10, padding: 2 },
-  fBtn: { paddingHorizontal: 10, height: 28, justifyContent: 'center', borderRadius: 8 },
+  hBtn: { width: 64 },
+  hTitle: { flex: 1, fontFamily: fonts.display, color: colors.text, fontSize: 20, textTransform: 'uppercase', textAlign: 'center' },
+  formatToggle: { width: 64, flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 10, padding: 2 },
+  fBtn: { flex: 1, height: 26, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
   fBtnActive: { backgroundColor: colors.surface2 },
-  fText: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 12 },
+  fText: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 10 },
   fTextActive: { color: colors.text },
-  previewArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  cardShadow: { borderRadius: 14, overflow: 'hidden', elevation: 10, backgroundColor: '#000' },
-  controls: { paddingHorizontal: 16, paddingBottom: 8 },
-  photoRow: { flexDirection: 'row', gap: 10 },
-  photoBtn: {
+  previewArea: { alignItems: 'center', paddingVertical: 12 },
+  cardShadow: { borderRadius: 18, overflow: 'hidden', elevation: 10, backgroundColor: '#000' },
+  tiles: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: 8 },
+  tile: {
     flex: 1,
-    height: 58,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    gap: 10,
+    height: 58,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,185,0,0.55)',
+    paddingHorizontal: 14,
   },
-  photoBtnActive: { borderColor: colors.border },
-  photoLabel: { fontFamily: fonts.bodyMedium, color: colors.text, fontSize: 12 },
-  chips: { gap: 8, paddingVertical: 10 },
-  chip: { paddingHorizontal: 16, height: 36, borderRadius: 18, backgroundColor: colors.surface, justifyContent: 'center' },
-  chipActive: { backgroundColor: colors.text },
-  chipText: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 14 },
-  chipTextActive: { color: colors.bg },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  logoTitle: { fontFamily: fonts.bodyMedium, color: colors.muted, fontSize: 13, marginRight: 4 },
-  logoChip: { paddingHorizontal: 14, height: 32, borderRadius: 16, backgroundColor: colors.surface, justifyContent: 'center' },
-  logoChipText: { fontFamily: fonts.bodySemi, color: colors.muted, fontSize: 13 },
-  swatches: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 12 },
-  swatchRing: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  swatch: { width: 26, height: 26, borderRadius: 13 },
-  actions: { flexDirection: 'row', gap: 10 },
+  tileIcon: { width: 32, alignItems: 'center' },
+  tileText: { fontFamily: fonts.bodySemi, color: colors.text, fontSize: 15 },
+  list: { marginTop: 18, marginHorizontal: 16, backgroundColor: colors.surface, borderRadius: 18 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14 },
+  rowIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,185,0,0.12)', alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { fontFamily: fonts.bodySemi, color: colors.text, fontSize: 16 },
+  rowSub: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, marginTop: 2 },
 });

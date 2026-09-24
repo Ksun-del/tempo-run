@@ -204,7 +204,7 @@ async function startUpdates(): Promise<'background' | 'foreground'> {
       foregroundService: {
         notificationTitle: 'Идёт тренировка',
         notificationBody: 'RUN записывает маршрут',
-        notificationColor: '#D7FF3A',
+        notificationColor: '#FFB900',
         killServiceOnDestroy: false,
       },
     });

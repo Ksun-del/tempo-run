@@ -100,11 +100,27 @@ export default function HistoryScreen() {
     }));
   }, [runs]);
 
+  // Рекорды за всё время
+  const records = useMemo(() => {
+    let km1: number | null = null, km5: number | null = null, km10: number | null = null, longest = 0, total = 0;
+    for (const r of runs) {
+      total += r.distanceM;
+      longest = Math.max(longest, r.distanceM);
+      r.splits.forEach((at, i) => {
+        const ms = at - (r.splits[i - 1] ?? 0);
+        if (ms > 60000 && (km1 == null || ms < km1)) km1 = ms;
+      });
+      if (r.splits.length >= 5 && (km5 == null || r.splits[4] < km5)) km5 = r.splits[4];
+      if (r.splits.length >= 10 && (km10 == null || r.splits[9] < km10)) km10 = r.splits[9];
+    }
+    return { km1, km5, km10, longest, total, count: runs.length };
+  }, [runs]);
+
   const maxBar = Math.max(1, ...stats.bars.map((b) => b.km));
 
   const header = (
     <View>
-      <Text style={styles.h1}>История</Text>
+      <Text style={styles.h1}>Статистика</Text>
       <View style={styles.tabs}>
         {PERIODS.map((p) => (
           <Pressable key={p.key} onPress={() => setPeriod(p.key)} style={[styles.tab, period === p.key && styles.tabActive]}>
@@ -140,6 +156,20 @@ export default function HistoryScreen() {
           ))}
         </View>
       </View>
+      {runs.length > 0 && (
+        <>
+          <Text style={styles.blockTitle}>Рекорды</Text>
+          <View style={styles.records}>
+            <Record label="Быстрый км" value={records.km1 != null ? formatDuration(records.km1) : '—'} />
+            <Record label="5 км" value={records.km5 != null ? formatDuration(records.km5) : '—'} />
+            <Record label="10 км" value={records.km10 != null ? formatDuration(records.km10) : '—'} />
+            <Record label="Самая длинная" value={`${formatKm(records.longest, 1)} км`} />
+            <Record label="Всего" value={`${formatKm(records.total, 0)} км`} />
+            <Record label="Пробежек" value={String(records.count)} />
+          </View>
+          <Text style={styles.blockTitle}>Все пробежки</Text>
+        </>
+      )}
       {!loading && runs.length === 0 && (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Пока пусто</Text>
@@ -188,7 +218,21 @@ export default function HistoryScreen() {
   );
 }
 
+function Record({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.record}>
+      <Text style={styles.recordVal}>{value}</Text>
+      <Text style={styles.recordLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  blockTitle: { fontFamily: fonts.display, color: colors.text, fontSize: 22, textTransform: 'uppercase', marginTop: 26 },
+  records: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  record: { width: '31.8%', backgroundColor: colors.surface, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 10 },
+  recordVal: { fontFamily: fonts.display, color: colors.accent, fontSize: 20 },
+  recordLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 11, marginTop: 2 },
   root: { flex: 1, backgroundColor: colors.bg },
   h1: { fontFamily: fonts.display, fontSize: 34, color: colors.text, textTransform: 'uppercase', marginTop: 8 },
   tabs: { flexDirection: 'row', gap: 8, marginTop: 14 },

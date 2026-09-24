@@ -14,7 +14,7 @@ type Props = {
 };
 
 /** Силуэт маршрута без карты — для карточек и списка. */
-function TrackSvg({ points, width, height, color = '#D7FF3A', strokeWidth = 4, padding, shadow, dots = true }: Props) {
+function TrackSvg({ points, width, height, color = '#FFB900', strokeWidth = 4, padding, shadow, dots = true }: Props) {
   const proj = useMemo(
     () => projectTrack(simplify(points, 800), width, height, padding ?? strokeWidth * 2 + 4),
     [points, width, height, padding, strokeWidth],
