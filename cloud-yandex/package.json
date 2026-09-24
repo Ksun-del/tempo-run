@@ -1,0 +1,19 @@
+{
+  "name": "run-club-yandex",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Облако клуба Pobeda Run для Yandex Cloud Functions",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/index.js && cd dist && rm -f ../function.zip && zip -q ../function.zip index.js",
+    "test": "node --experimental-strip-types test/local.test.mts"
+  },
+  "dependencies": {
+    "@ydbjs/auth": "^6.3.1",
+    "@ydbjs/core": "^6.3.1",
+    "@ydbjs/query": "^6.3.0",
+    "@ydbjs/value": "^6.0.8"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -5,6 +5,7 @@
   },
   "exclude": [
     "cloud",
+    "cloud-yandex",
     "node_modules"
   ]
 }

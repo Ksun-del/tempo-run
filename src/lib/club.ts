@@ -49,6 +49,17 @@ async function deviceId(): Promise<string> {
   return id;
 }
 
+/**
+ * У функции Yandex Cloud один адрес, поэтому путь передаётся параметром ?path=...
+ * (для старого облака на Cloudflare путь дописывается к адресу как раньше).
+ */
+function apiUrl(path: string): string {
+  const base = CLUB_API_URL.replace(/\/$/, '');
+  if (!base.includes('functions.yandexcloud.net')) return base + path;
+  const [p, q] = path.split('?');
+  return `${base}?path=${encodeURIComponent(p)}${q ? `&${q}` : ''}`;
+}
+
 async function request<T>(path: string, init: RequestInit = {}, codeOverride?: string): Promise<T> {
   if (!clubConfigured()) throw new ClubError('Облако клуба ещё не подключено к приложению.');
   const code = codeOverride ?? (await getSettings()).clubCode;
@@ -57,7 +68,7 @@ async function request<T>(path: string, init: RequestInit = {}, codeOverride?: s
   const timer = setTimeout(() => ctrl.abort(), 20000);
   let res: Response;
   try {
-    res = await fetch(CLUB_API_URL.replace(/\/$/, '') + path, {
+    res = await fetch(apiUrl(path), {
       ...init,
       signal: ctrl.signal,
       headers: {

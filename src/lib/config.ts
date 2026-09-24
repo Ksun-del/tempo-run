@@ -1,7 +1,7 @@
 /**
- * Адрес облака клуба (Cloudflare Worker).
+ * Адрес облака клуба (Yandex Cloud Function, папка cloud-yandex).
  */
-export const CLUB_API_URL = 'https://tempo-club.kuxaricheva.workers.dev';
+export const CLUB_API_URL = 'https://functions.yandexcloud.net/d4ee3bddl784drj8dkpc';
 
 /** Центр карты по умолчанию — Ростов-на-Дону */
 export const DEFAULT_CENTER = { lat: 47.2224, lon: 39.7188 };
