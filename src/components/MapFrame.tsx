@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { MAP_REFERER_HOST } from '../lib/config';
 
 export type MapFrameHandle = { run: (js: string) => void };
 type Props = { html: string; onReady: () => void };
@@ -15,7 +16,7 @@ const MapFrame = forwardRef<MapFrameHandle, Props>(function MapFrame({ html, onR
     <WebView
       ref={web}
       style={StyleSheet.absoluteFill}
-      source={{ html, baseUrl: 'https://tempo.local/' }}
+      source={{ html, baseUrl: `https://${MAP_REFERER_HOST}/` }}
       originWhitelist={['*']}
       onMessage={(e) => e.nativeEvent.data === 'ready' && onReady()}
       javaScriptEnabled
