@@ -5,7 +5,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RunMap from '../../components/RunMap';
+import InstallHint from '../../components/InstallHint';
 import Welcome from '../../components/Welcome';
+import { unlockSpeech } from '../../lib/unlockSpeech';
 import { g } from '../../lib/gender';
 import { formatKm } from '../../lib/geo';
 import { useActiveRun, useRuns } from '../../lib/hooks';
@@ -64,6 +66,7 @@ export default function HomeScreen() {
   }, [runs]);
 
   const onStart = async () => {
+    unlockSpeech();
     if (active) {
       router.push('/run');
       return;
@@ -105,6 +108,7 @@ export default function HomeScreen() {
             <Text style={styles.gpsText}>Ищем GPS… Лучше стартовать на открытом месте</Text>
           </View>
         )}
+        <InstallHint />
       </SafeAreaView>
 
       <View style={styles.bottom} pointerEvents="box-none">

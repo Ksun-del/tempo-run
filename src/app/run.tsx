@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RunMap, { type RunMapHandle } from '../components/RunMap';
 import { Stat } from '../components/ui';
@@ -108,7 +108,11 @@ export default function RunScreen() {
         </SafeAreaView>
         {run.mode === 'foreground' && (
           <View style={styles.warn}>
-            <Text style={styles.warnText}>Фоновая запись недоступна — не блокируй экран во время бега</Text>
+            <Text style={styles.warnText}>
+              {Platform.OS === 'web'
+                ? 'Не блокируй экран: в браузере трек пишется, только пока RUN открыт'
+                : 'Фоновая запись недоступна — не блокируй экран во время бега'}
+            </Text>
           </View>
         )}
       </View>
@@ -186,7 +190,7 @@ const styles = StyleSheet.create({
   gpsText: { fontFamily: fonts.bodyMedium, color: colors.text, fontSize: 12 },
   warn: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 36,
     left: 16,
     right: 16,
     backgroundColor: 'rgba(255,107,44,0.95)',

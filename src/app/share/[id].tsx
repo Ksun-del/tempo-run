@@ -1,15 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as MediaLibrary from 'expo-media-library/legacy';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as Sharing from 'expo-sharing';
 import { useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { captureRef } from 'react-native-view-shot';
 import CardCanvas from '../../components/card/CardCanvas';
 import { makeSet, RATIO, type Format } from '../../components/card/model';
 import Sheet, { SheetOption } from '../../components/Sheet';
 import { useDraft } from '../../lib/cardStore';
+import { saveCard, shareCard, webShareHint } from '../../lib/cardExport';
 import { pickPhoto } from '../../lib/photo';
 import { colors, fonts } from '../../lib/theme';
 import { useCardData } from '../../lib/useCardData';
@@ -36,19 +34,13 @@ export default function ShareScreen() {
     if (uri) setComp((c) => ({ ...c, photo: uri }));
   };
 
-  const capture = () =>
-    captureRef(card, { format: 'jpg', quality: 0.95, width: 1080, height: Math.round(1080 * ratio), result: 'tmpfile' });
-
   const onSave = async () => {
+    if (!card.current) return;
     setBusy('save');
     try {
-      const perm = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
-      if (!perm.granted) {
-        Alert.alert('Нет доступа к галерее', 'Разреши сохранение фото в настройках телефона.');
-        return;
-      }
-      await MediaLibrary.saveToLibraryAsync(await capture());
-      Alert.alert('Готово', 'Картинка сохранена в галерею.');
+      const r = await saveCard(card.current, ratio);
+      if (r === 'denied') Alert.alert('Нет доступа к галерее', 'Разреши сохранение фото в настройках телефона.');
+      else if (Platform.OS !== 'web') Alert.alert('Готово', 'Картинка сохранена в галерею.');
     } catch (e) {
       Alert.alert('Не получилось сохранить', String(e));
     } finally {
@@ -57,14 +49,11 @@ export default function ShareScreen() {
   };
 
   const onShare = async () => {
+    if (!card.current) return;
     setBusy('share');
     try {
-      const uri = await capture();
-      if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert('Поделиться нельзя', 'На этом устройстве недоступно меню «Поделиться».');
-        return;
-      }
-      await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', dialogTitle: 'Поделиться тренировкой' });
+      const r = await shareCard(card.current, ratio);
+      if (r === 'unavailable') Alert.alert('Поделиться нельзя', 'На этом устройстве недоступно меню «Поделиться».');
     } catch (e) {
       Alert.alert('Не получилось поделиться', String(e));
     } finally {
@@ -108,7 +97,7 @@ export default function ShareScreen() {
           <Row
             icon={busy === 'save' ? <ActivityIndicator color={colors.accent} /> : <Ionicons name="download-outline" size={22} color={colors.accent} />}
             title="Сохранить картинку"
-            sub="В галерею телефона"
+            sub={Platform.OS === "web" ? webShareHint : "В галерею телефона"}
             onPress={onSave}
             disabled={!!busy}
           />

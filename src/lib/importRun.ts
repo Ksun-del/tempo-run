@@ -93,7 +93,9 @@ export async function importGpxFile(): Promise<string | null> {
   const res = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: false });
   if (res.canceled || !res.assets?.[0]) return null;
   const asset = res.assets[0];
-  const xml = await new File(asset.uri).text();
+  // в браузере (iPhone) файл приходит как File, в приложении — как путь
+  const webFile = (asset as { file?: Blob }).file;
+  const xml = webFile ? await webFile.text() : await new File(asset.uri).text();
   if (!/<gpx\b/i.test(xml)) throw new ImportError('Это не GPX-файл. Выгрузи тренировку из часов или Strava в формате GPX.');
   const { name, points } = parseGpx(xml);
   if (points.length < 2) throw new ImportError('В файле нет точек маршрута со временем.');

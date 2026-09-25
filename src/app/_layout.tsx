@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AlertHost from '../components/AlertHost';
 import Intro from '../components/Intro';
 import { colors } from '../lib/theme';
 import { resumeTrackingIfNeeded } from '../lib/tracker';
@@ -53,6 +54,7 @@ export default function RootLayout() {
           <Stack.Screen name="share/edit/[id]" options={{ gestureEnabled: false }} />
           <Stack.Screen name="club/[id]" />
         </Stack>
+        <AlertHost />
         {intro && <Intro onDone={endIntro} />}
       </ThemeProvider>
     </SafeAreaProvider>
