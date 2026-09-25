@@ -3,7 +3,7 @@
     "name": "RUN",
     "slug": "tempo-run",
     "scheme": "tempo",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -38,7 +38,7 @@
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_EXERCISE_ROUTES"
       ],
-      "versionCode": 4
+      "versionCode": 5
     },
     "web": {
       "favicon": "./assets/favicon.png",
