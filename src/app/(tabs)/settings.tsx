@@ -107,7 +107,7 @@ export default function SettingsScreen() {
                 onChangeText={setCode}
                 autoCapitalize="characters"
                 autoCorrect={false}
-                placeholder="Например, POBEDA2026"
+                placeholder="Узнай код у тренера"
                 placeholderTextColor={colors.muted}
                 style={styles.input}
               />
