@@ -80,11 +80,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'weekend', group: G.days, name: 'Воскресный забег', desc: 'Пробежка в субботу или воскресенье', shape: 'round', big: 'ВС', small: 'SUNDAY RUN', repeat: true },
   { id: 'dawn', group: G.days, name: 'Рассветный бегун', desc: 'Старт до 7:00', shape: 'round', icon: 'sun', repeat: true },
   { id: 'night', group: G.days, name: 'Ночной дозор', desc: 'Старт после 22:00', shape: 'round', icon: 'moon', repeat: true },
-  { id: 'winter', group: G.days, name: 'В любую погоду', desc: 'Пробежка с ноября по февраль', shape: 'round', icon: 'rain', repeat: true },
+  { id: 'winter', group: G.days, name: 'В любую погоду', desc: 'Пробежка с ноября по февраль. Считаем зимы', shape: 'round', icon: 'rain', repeat: true },
   { id: 'midnight', group: G.days, name: 'После полуночи', desc: 'Старт между 0:00 и 5:00', shape: 'round', icon: 'moon', secret: true },
   { id: 'jan1', group: G.hol, name: 'Первая пробежка года', desc: 'Пробежка 1 января', shape: 'star', big: '1.01' },
   { id: 'dec31', group: G.hol, name: 'Последняя пробежка года', desc: 'Пробежка 31 декабря', shape: 'star', icon: 'snow' },
-  { id: 'mar8', group: G.hol, name: 'Весенний забег', desc: 'Пробежка 8 марта', shape: 'star', icon: 'flower' },
+  { id: 'spring', group: G.hol, name: 'Весна пришла', desc: 'Пробежка 1 марта', shape: 'star', icon: 'flower' },
   { id: 'may9', group: G.hol, name: 'Забег Победы', desc: 'Пробежка 9 мая', shape: 'star', big: '9', small: 'МАЯ' },
   { id: 'halloween', group: G.hol, name: 'Страшно быстро', desc: 'Пробежка на Хеллоуин, 31 октября', shape: 'star', icon: 'pumpkin' },
 ];
@@ -114,6 +114,7 @@ export function computeAchievements(all: RunSummary[], gender: Gender = 'f'): Ac
   let best5: number | null = null;
   let longest = 0;
   const weeks = new Map<number, number>();
+  const winters = new Set<number>();
 
   runs.forEach((r, i) => {
     const t = r.startedAt;
@@ -158,10 +159,17 @@ export function computeAchievements(all: RunSummary[], gender: Gender = 'f'): Ac
     if (h >= 5 && h < 7) give('dawn', t);
     if (h >= 22) give('night', t);
     if (h < 5) give('midnight', t);
-    if (mon === 10 || mon === 11 || mon === 0 || mon === 1) give('winter', t);
+    // одна зима = ноябрь–февраль; за зиму значок засчитывается один раз
+    if (mon === 10 || mon === 11 || mon === 0 || mon === 1) {
+      const season = mon >= 10 ? d.getFullYear() : d.getFullYear() - 1;
+      if (!winters.has(season)) {
+        winters.add(season);
+        give('winter', t);
+      }
+    }
     if (mon === 0 && day === 1) give('jan1', t);
     if (mon === 11 && day === 31) give('dec31', t);
-    if (mon === 2 && day === 8) give('mar8', t);
+    if (mon === 2 && day === 1) give('spring', t);
     if (mon === 4 && day === 9) give('may9', t);
     if (mon === 9 && day === 31) give('halloween', t);
   });
@@ -179,7 +187,7 @@ export function computeAchievements(all: RunSummary[], gender: Gender = 'f'): Ac
       } else if (tot) {
         progress = Math.min(1, total / tot[1]);
         progressText = `${Math.floor(total)} из ${tot[1]} км`;
-      } else if (a.id.startsWith('n')) {
+      } else if (/^n\d+$/.test(a.id)) {
         const goal = Number(a.id.slice(1));
         progress = Math.min(1, nRuns / goal);
         progressText = `${nRuns} из ${goal} пробежек`;

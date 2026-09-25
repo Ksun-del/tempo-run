@@ -393,6 +393,9 @@ export default function HistoryScreen() {
             ) : (
               <Text style={styles.achWhen}>Ещё впереди</Text>
             )}
+            {openAch.repeat && (
+              <Text style={styles.achWhen}>{openAch.id === 'winter' ? 'Каждая новая зима добавит ×2, ×3 на значке' : 'Каждая такая пробежка добавит ×2, ×3 на значке'}</Text>
+            )}
           </View>
         )}
       </Sheet>
