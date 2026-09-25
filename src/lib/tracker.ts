@@ -46,6 +46,10 @@ export type ActiveRun = {
   mode: 'background' | 'foreground';
   /** последняя точка, даже если она не попала в трек — для карты */
   lastFix: { lat: number; lon: number; acc: number | null } | null;
+  /** пауза поставлена автоматически (стоим на светофоре) */
+  auto?: boolean;
+  /** где остановились — чтобы понять, что снова бежим */
+  autoAnchor?: { lat: number; lon: number } | null;
 };
 
 let state: ActiveRun | null = null;
@@ -55,6 +59,60 @@ let watchSub: Location.LocationSubscription | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let bgBroken = false;
 let guardArmed = false;
+
+/** Последние точки GPS (не только принятые в трек) — по ним видно, стоим мы или бежим */
+type Fix = { lat: number; lon: number; t: number };
+let recent: Fix[] = [];
+/** Стоим, если за 10 секунд сместились меньше чем на 6 м */
+const STOP_WINDOW_MS = 10000;
+const STOP_RADIUS_M = 6;
+/** После старта / паузы первые 15 секунд автопаузу не включаем */
+const AUTO_GRACE_MS = 15000;
+
+/** Точка, записанная примерно `ago` мс назад (не раньше `ago + 3` с) */
+function fixAgo(t: number, ago: number): Fix | null {
+  for (const f of recent) {
+    if (f.t >= t - ago - 3000) return f.t <= t - ago + 1000 ? f : null;
+  }
+  return null;
+}
+
+function voiceOn() {
+  return settings?.voiceEnabled ?? true;
+}
+
+/** Автопауза: останавливаем время на светофоре и продолжаем, когда снова побежали */
+function autoPauseStep(t: number, lat: number, lon: number, speed: number | null) {
+  if (!state || !(settings?.autoPause ?? true)) return;
+  if (state.status === 'running') {
+    if (t - state.lastResumeAt < AUTO_GRACE_MS) return;
+    const old = fixAgo(t, STOP_WINDOW_MS);
+    if (!old) return;
+    const moved = haversine(old.lat, old.lon, lat, lon);
+    if (moved < STOP_RADIUS_M && (speed == null || speed < 0.8)) {
+      const last = state.points[state.points.length - 1];
+      state.status = 'paused';
+      state.pausedAt = Math.min(t, Math.max(old.t, last?.t ?? old.t));
+      state.auto = true;
+      state.autoAnchor = { lat, lon };
+      if (voiceOn()) say('Автопауза');
+    }
+  } else if (state.status === 'paused' && state.auto) {
+    const old = fixAgo(t, 4000);
+    const moved = old ? haversine(old.lat, old.lon, lat, lon) : 0;
+    const anchor = state.autoAnchor;
+    const fromAnchor = anchor ? haversine(anchor.lat, anchor.lon, lat, lon) : 0;
+    if (moved > 8 || fromAnchor > 25 || (speed != null && speed > 2 && moved > 4)) {
+      state.pausedTotal += t - (state.pausedAt ?? t);
+      state.pausedAt = null;
+      state.status = 'running';
+      state.auto = false;
+      state.autoAnchor = null;
+      state.lastResumeAt = t;
+      if (voiceOn()) say('Продолжаем');
+    }
+  }
+}
 
 type Listener = (s: ActiveRun | null) => void;
 const listeners = new Set<Listener>();
@@ -129,10 +187,13 @@ function handleLocations(locations: Location.LocationObject[]) {
     const { latitude: lat, longitude: lon, accuracy, altitude } = loc.coords;
     state.lastFix = { lat, lon, acc: accuracy ?? null };
     changed = true;
-    if (state.status !== 'running') continue;
     const t = loc.timestamp;
-    if (t < state.lastResumeAt - 1500) continue;
     if (accuracy != null && accuracy > MAX_ACCURACY_M) continue;
+    recent.push({ lat, lon, t });
+    while (recent.length && recent[0].t < t - 20000) recent.shift();
+    autoPauseStep(t, lat, lon, loc.coords.speed ?? null);
+    if (state.status !== 'running') continue;
+    if (t < state.lastResumeAt - 1500) continue;
 
     const point: TrackPoint = { lat, lon, t, alt: altitude, seg: state.seg };
     const prev = state.points[state.points.length - 1];
@@ -273,6 +334,7 @@ export async function startRun(): Promise<ActiveRun> {
     mode: 'background',
     lastFix: null,
   };
+  recent = [];
   loaded = true;
   notify();
   state.mode = await startUpdates();
@@ -297,6 +359,14 @@ export async function resumeTrackingIfNeeded() {
 }
 
 export function pauseRun() {
+  if (state?.status === 'paused' && state.auto) {
+    // нажали паузу во время автопаузы — теперь это обычная пауза, сама не снимется
+    state.auto = false;
+    state.autoAnchor = null;
+    notify();
+    persistSoon(true);
+    return;
+  }
   if (!state || state.status !== 'running') return;
   state.status = 'paused';
   state.pausedAt = Date.now();
@@ -313,6 +383,8 @@ export function resumeRun() {
   state.status = 'running';
   state.lastResumeAt = now;
   state.seg += 1;
+  state.auto = false;
+  state.autoAnchor = null;
   if (settings?.voiceEnabled ?? true) say('Продолжаем');
   notify();
   persistSoon(true);
@@ -339,6 +411,7 @@ export async function finishRun(save = true): Promise<Run | null> {
     elevationGainM: elevationGain(s.points),
     splits: s.splits,
     points: s.points,
+    shoeId: (await getSettings().catch(() => settings))?.activeShoeId ?? null,
   };
   await saveRun(run);
   if (settings?.voiceEnabled ?? true) announceFinish(run.distanceM, run.durationMs);

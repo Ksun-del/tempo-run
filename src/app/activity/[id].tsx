@@ -12,7 +12,9 @@ import { say } from '../../lib/voice';
 import { Button, SectionTitle } from '../../components/ui';
 import { formatDate, formatDuration, formatKm, formatPace, formatTime, paceSecPerKm, speedKmh, weekdayName } from '../../lib/geo';
 import { ClubError, resyncIfShared, shareRun, unshareRun, clubConfigured } from '../../lib/club';
-import { deleteRun, getRun, getSettings, listRuns, updateRunTitle, type Run, type Settings } from '../../lib/storage';
+import { deleteRun, getRun, getSettings, listRuns, setRunShoe, updateRunTitle, type Run, type Settings } from '../../lib/storage';
+import { useShoes } from '../../lib/shoes';
+import Sheet, { SheetOption } from '../../components/Sheet';
 import { splitRows } from '../../lib/splits';
 import { colors, fonts } from '../../lib/theme';
 
@@ -24,6 +26,8 @@ export default function ActivityScreen() {
   const [title, setTitle] = useState('');
   const [clubBusy, setClubBusy] = useState(false);
   const [newAch, setNewAch] = useState<AchievementState[]>([]);
+  const shoes = useShoes();
+  const [shoeSheet, setShoeSheet] = useState(false);
 
   // Сразу после финиша — проверяем новые достижения
   useEffect(() => {
@@ -161,6 +165,16 @@ export default function ActivityScreen() {
             <Cell value={`${run.elevationGainM} м`} label="Набор высоты" />
           </View>
 
+          {shoes.length > 0 && (
+            <Pressable style={styles.shoeRow} onPress={() => setShoeSheet(true)}>
+              <Ionicons name="footsteps" size={18} color={colors.accent} />
+              <Text style={styles.shoeText} numberOfLines={1}>
+                {shoes.find((x) => x.id === run.shoeId)?.name ?? 'Выбрать кроссовки'}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            </Pressable>
+          )}
+
           {rows.length > 0 && (
             <>
               <SectionTitle>Сплиты</SectionTitle>
@@ -190,6 +204,20 @@ export default function ActivityScreen() {
         </View>
       </ScrollView>
 
+      <Sheet visible={shoeSheet} title={settings?.gender === "m" ? "В каких бежал?" : "В каких бежала?"} onClose={() => setShoeSheet(false)}>
+        {[...shoes.filter((x) => !x.retired || x.id === run.shoeId).map((x) => ({ id: x.id as string | null, name: x.name })), { id: null, name: 'Без кроссовок' }].map((o) => (
+          <SheetOption
+            key={o.id ?? 'none'}
+            icon={<Ionicons name={o.id === (run.shoeId ?? null) ? 'checkmark' : 'footsteps-outline'} size={20} color={o.id === (run.shoeId ?? null) ? colors.accent : colors.text} />}
+            label={o.name}
+            onPress={async () => {
+              setShoeSheet(false);
+              await setRunShoe(run.id, o.id);
+              setRun({ ...run, shoeId: o.id });
+            }}
+          />
+        ))}
+      </Sheet>
       <NewAchievement
         items={newAch}
         onClose={() => setNewAch([])}
@@ -233,6 +261,8 @@ function Cell({ value, label }: { value: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  shoeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 14, height: 50, marginTop: 14 },
+  shoeText: { flex: 1, fontFamily: fonts.bodySemi, color: colors.text, fontSize: 15 },
   root: { flex: 1, backgroundColor: colors.bg },
   mapBox: { height: 340, backgroundColor: colors.surface },
   mapTop: {

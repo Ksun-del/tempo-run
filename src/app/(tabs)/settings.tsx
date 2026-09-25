@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, SectionTitle } from '../../components/ui';
+import ShoesSection from '../../components/ShoesSection';
 import { checkClubCode, clubConfigured } from '../../lib/club';
 import { addDemoRun } from '../../lib/demo';
 import { getSettings, saveSettings, type Settings } from '../../lib/storage';
@@ -127,6 +128,27 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        <SectionTitle>Тренировка</SectionTitle>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.rowText}>Автопауза</Text>
+              <Text style={[styles.label, { marginTop: 4, marginBottom: 0 }]}>
+                На светофоре время останавливается само и продолжается, как только {s.gender === 'm' ? 'побежал' : 'побежала'}
+              </Text>
+            </View>
+            <Switch
+              value={s.autoPause}
+              onValueChange={(v) => update({ autoPause: v })}
+              trackColor={{ true: colors.accent, false: colors.surface2 }}
+              thumbColor={s.autoPause ? colors.bg : colors.muted}
+            />
+          </View>
+        </View>
+
+        <SectionTitle>Кроссовки</SectionTitle>
+        <ShoesSection settings={s} onSettings={setS} />
+
         <SectionTitle>Голосовые подсказки</SectionTitle>
         <View style={styles.card}>
           <View style={styles.row}>
@@ -209,7 +231,7 @@ export default function SettingsScreen() {
           }}
         />
 
-        <Text style={styles.footer}>RUN 1.2 · карты © OpenFreeMap, © OpenStreetMap</Text>
+        <Text style={styles.footer}>RUN 1.3 · карты © OpenFreeMap, © OpenStreetMap</Text>
       </ScrollView>
     </SafeAreaView>
   );

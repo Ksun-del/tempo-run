@@ -118,7 +118,8 @@ export default function RunScreen() {
       </View>
 
       <SafeAreaView edges={['bottom']} style={[styles.panel, paused && styles.panelPaused]}>
-        {paused && <Text style={styles.pausedLabel}>ПАУЗА</Text>}
+        {paused && <Text style={styles.pausedLabel}>{run.auto ? 'АВТОПАУЗА' : 'ПАУЗА'}</Text>}
+        {paused && run.auto && <Text style={styles.autoHint}>Стоишь — время не идёт. Продолжим, как только побежишь</Text>}
         <Stat value={formatKm(run.distanceM)} label="километры" big />
         <View style={styles.row}>
           <Stat value={formatDuration(elapsed)} label="время" style={styles.cell} />
@@ -215,6 +216,7 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
     marginBottom: -4,
   },
+  autoHint: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 8, marginBottom: 2 },
   row: { flexDirection: 'row', marginTop: 14 },
   cell: { flex: 1 },
   controls: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 20, paddingVertical: 22 },

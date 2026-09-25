@@ -16,6 +16,8 @@ export type RunSummary = {
   preview?: TrackPoint[];
   /** когда пробежка отправлена в облако клуба (null — не отправлена) */
   clubSharedAt?: number | null;
+  /** в каких кроссовках бежали (id пары) */
+  shoeId?: string | null;
 };
 
 export type Run = RunSummary & {
@@ -32,6 +34,12 @@ export type Settings = {
   clubCode: string;
   /** обращение: f — она, m — он, '' — ещё не выбрано */
   gender: 'f' | 'm' | '';
+  /** цель на неделю, км (0 — не задана) */
+  weekGoalKm: number;
+  /** автопауза на светофорах */
+  autoPause: boolean;
+  /** кроссовки, в которых бегаю сейчас */
+  activeShoeId: string | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -41,6 +49,9 @@ export const DEFAULT_SETTINGS: Settings = {
   name: '',
   clubCode: '',
   gender: '',
+  weekGoalKm: 0,
+  autoPause: true,
+  activeShoeId: null,
 };
 
 const INDEX_KEY = 'tempo:runs:index';
@@ -85,6 +96,12 @@ export async function updateRunTitle(id: string, title: string): Promise<void> {
   const run = await getRun(id);
   if (!run) return;
   await saveRun({ ...run, title });
+}
+
+export async function setRunShoe(id: string, shoeId: string | null): Promise<void> {
+  const run = await getRun(id);
+  if (!run) return;
+  await saveRun({ ...run, shoeId });
 }
 
 export async function markClubShared(id: string, at: number | null): Promise<void> {

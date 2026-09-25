@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Badge from '../../components/Badge';
 import Sheet, { SheetOption } from '../../components/Sheet';
@@ -11,6 +11,7 @@ import { formatDate, formatShortDate, formatDuration, formatKm, formatPace, form
 import { healthSupported, importHealthRun, listHealthRuns, openHealthSettings, type HealthRun } from '../../lib/health';
 import { useRuns, useSettings } from '../../lib/hooks';
 import { importGpxFile } from '../../lib/importRun';
+import { availablePeriods, parsePeriod } from '../../lib/summary';
 import type { RunSummary } from '../../lib/storage';
 import { colors, fonts } from '../../lib/theme';
 
@@ -182,6 +183,16 @@ export default function HistoryScreen() {
 
   const maxBar = Math.max(1, ...stats.bars.map((b) => b.km));
 
+  const summaryChips = useMemo(() => {
+    const { years, months } = availablePeriods(runs);
+    const thisYear = new Date().getFullYear();
+    return [...years, ...months.slice(0, 12)].map((key) => {
+      const p = parsePeriod(key)!;
+      const label = p.month == null ? `Мой ${p.year}` : `${MONTHS[p.month]}${p.year !== thisYear ? ` ${p.year}` : ''}`;
+      return { key, label, year: p.month == null };
+    });
+  }, [runs]);
+
   const header = (
     <View>
       <View style={styles.titleRow}>
@@ -244,6 +255,19 @@ export default function HistoryScreen() {
             <Record label="Всего" value={`${formatKm(records.total, 0)} км`} />
             <Record label="Пробежек" value={String(records.count)} />
           </View>
+          <Text style={styles.blockTitle}>Итоги</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sumChips} style={{ marginHorizontal: -16 }}>
+            {summaryChips.map((c) => (
+              <Pressable
+                key={c.key}
+                onPress={() => router.push(`/summary/${c.key}`)}
+                style={({ pressed }) => [styles.sumChip, c.year && styles.sumChipYear, pressed && { opacity: 0.8 }]}
+              >
+                <Ionicons name={c.year ? 'sparkles' : 'calendar-outline'} size={15} color={c.year ? colors.accentText : colors.accent} />
+                <Text style={[styles.sumChipText, c.year && { color: colors.accentText }]}>{c.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         </>
       )}
       <>
@@ -440,6 +464,10 @@ const styles = StyleSheet.create({
   progBar: { height: '100%', backgroundColor: colors.accent, borderRadius: 4 },
   blockTitle: { fontFamily: fonts.display, color: colors.text, fontSize: 22, textTransform: 'uppercase', marginTop: 26 },
   records: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  sumChips: { paddingHorizontal: 16, gap: 8, marginTop: 10 },
+  sumChip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: colors.surface },
+  sumChipYear: { backgroundColor: colors.accent },
+  sumChipText: { fontFamily: fonts.bodySemi, color: colors.text, fontSize: 14 },
   record: { width: '31.8%', backgroundColor: colors.surface, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 10 },
   recordVal: { fontFamily: fonts.display, color: colors.accent, fontSize: 20 },
   recordLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 11, marginTop: 2 },

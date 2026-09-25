@@ -53,6 +53,7 @@ export default function RootLayout() {
           <Stack.Screen name="share/[id]" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="share/edit/[id]" options={{ gestureEnabled: false }} />
           <Stack.Screen name="club/[id]" />
+          <Stack.Screen name="summary/[key]" options={{ animation: 'slide_from_bottom' }} />
         </Stack>
         <AlertHost />
         {intro && <Intro onDone={endIntro} />}
