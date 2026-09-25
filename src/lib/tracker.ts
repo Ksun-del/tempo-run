@@ -6,6 +6,7 @@
  * (например, в Expo Go), переключаемся на обычное отслеживание и не даём экрану гаснуть.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { kv } from './kv';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
@@ -84,8 +85,8 @@ function persistSoon(immediate = false) {
   if (persistTimer) clearTimeout(persistTimer);
   const write = () => {
     persistTimer = null;
-    if (state) AsyncStorage.setItem(ACTIVE_KEY, JSON.stringify(state)).catch(() => {});
-    else AsyncStorage.removeItem(ACTIVE_KEY).catch(() => {});
+    if (state) kv.setItem(ACTIVE_KEY, JSON.stringify(state)).catch(() => {});
+    else kv.removeItem(ACTIVE_KEY).catch(() => {});
   };
   if (immediate) write();
   else persistTimer = setTimeout(write, 4000);
@@ -96,7 +97,7 @@ export async function ensureLoaded(): Promise<ActiveRun | null> {
   if (loaded) return state;
   loaded = true;
   try {
-    const raw = await AsyncStorage.getItem(ACTIVE_KEY);
+    const raw = await kv.getItem(ACTIVE_KEY);
     if (raw && !state) state = JSON.parse(raw);
   } catch {
     state = null;

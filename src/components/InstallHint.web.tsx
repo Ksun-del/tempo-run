@@ -31,7 +31,7 @@ export default function InstallHint() {
       <Ionicons name={ios ? 'share-outline' : 'add-circle-outline'} size={22} color={colors.accent} />
       <Text style={styles.text}>
         {ios
-          ? 'Добавь RUN на экран «Домой»: нажми «Поделиться» внизу Safari → «На экран „Домой“».'
+          ? 'Добавь RUN на экран «Домой»: нажми «Поделиться» в Safari, пролистай меню вниз → «На экран „Домой“».'
           : 'Добавь RUN на главный экран: меню браузера → «Добавить на главный экран».'}
       </Text>
       <Pressable onPress={hide} hitSlop={10}>

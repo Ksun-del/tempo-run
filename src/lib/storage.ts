@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { kv } from './kv';
 import { simplify, type TrackPoint } from './geo';
 
 export type RunSummary = {
@@ -58,13 +58,13 @@ export function onRunsChanged(fn: Listener) {
 const emit = () => listeners.forEach((l) => l());
 
 export async function listRuns(): Promise<RunSummary[]> {
-  const raw = await AsyncStorage.getItem(INDEX_KEY);
+  const raw = await kv.getItem(INDEX_KEY);
   const list: RunSummary[] = raw ? JSON.parse(raw) : [];
   return list.sort((a, b) => b.startedAt - a.startedAt);
 }
 
 export async function getRun(id: string): Promise<Run | null> {
-  const raw = await AsyncStorage.getItem(RUN_KEY(id));
+  const raw = await kv.getItem(RUN_KEY(id));
   return raw ? JSON.parse(raw) : null;
 }
 
@@ -74,10 +74,10 @@ export async function saveRun(run: Run): Promise<void> {
     ...rest,
     preview: simplify(points, 80).map((p) => ({ lat: p.lat, lon: p.lon, t: p.t, seg: p.seg })),
   };
-  await AsyncStorage.setItem(RUN_KEY(run.id), JSON.stringify({ ...summary, points }));
+  await kv.setItem(RUN_KEY(run.id), JSON.stringify({ ...summary, points }));
   const list = (await listRuns()).filter((r) => r.id !== run.id);
   list.push(summary);
-  await AsyncStorage.setItem(INDEX_KEY, JSON.stringify(list));
+  await kv.setItem(INDEX_KEY, JSON.stringify(list));
   emit();
 }
 
@@ -94,14 +94,14 @@ export async function markClubShared(id: string, at: number | null): Promise<voi
 }
 
 export async function deleteRun(id: string): Promise<void> {
-  await AsyncStorage.removeItem(RUN_KEY(id));
+  await kv.removeItem(RUN_KEY(id));
   const list = (await listRuns()).filter((r) => r.id !== id);
-  await AsyncStorage.setItem(INDEX_KEY, JSON.stringify(list));
+  await kv.setItem(INDEX_KEY, JSON.stringify(list));
   emit();
 }
 
 export async function getSettings(): Promise<Settings> {
-  const raw = await AsyncStorage.getItem(SETTINGS_KEY);
+  const raw = await kv.getItem(SETTINGS_KEY);
   return { ...DEFAULT_SETTINGS, ...(raw ? JSON.parse(raw) : {}) };
 }
 
@@ -115,7 +115,7 @@ export function onSettingsChanged(fn: (s: Settings) => void) {
 
 export async function saveSettings(s: Partial<Settings>): Promise<Settings> {
   const next = { ...(await getSettings()), ...s };
-  await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+  await kv.setItem(SETTINGS_KEY, JSON.stringify(next));
   settingsListeners.forEach((l) => l(next));
   return next;
 }
