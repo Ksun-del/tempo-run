@@ -1,0 +1,50 @@
+# Веб-версия RUN для iPhone: при каждом изменении в main собирается сайт
+# и публикуется на https://ksun-del.github.io/tempo-run/
+name: Веб-версия
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # библиотека для сохранения карточки в браузере
+      - run: npm ls html-to-image >/dev/null 2>&1 || npm install --no-save html-to-image@1.11.13
+      # иконки для экрана «Домой» из иконки приложения
+      - run: |
+          command -v convert >/dev/null || (sudo apt-get update && sudo apt-get install -y imagemagick)
+          mkdir -p public
+          convert assets/icon.png -resize 192x192 public/icon-192.png
+          convert assets/icon.png -resize 512x512 public/icon-512.png
+          convert assets/icon.png -resize 180x180 public/apple-touch-icon.png
+      - run: npx expo export -p web --output-dir dist
+        env:
+          WEB_BASE_URL: /tempo-run
+          EXPO_NO_TELEMETRY: 1
+      - run: cp dist/index.html dist/404.html && touch dist/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
